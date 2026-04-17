@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App
-Отправляет запросы через Telegram бота к локальному SQL
+🛡️ ARMOR HAND - Облачный Mini App на Render
+Подключается к локальному боту через ngrok туннель
 """
 
 import os
@@ -126,7 +126,6 @@ MINI_APP_HTML = '''
             try {
                 console.log('🔍 Отправляю запрос поиска:', query);
                 
-                // Отправляем запрос на локальный API
                 const response = await fetch('/api/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -299,11 +298,12 @@ MINI_APP_HTML = '''
 
 @app.route('/webapp', methods=['GET'])
 def webapp():
+    """Возвращает HTML страницу Mini App"""
     return render_template_string(MINI_APP_HTML)
 
 @app.route('/api/search', methods=['POST'])
 def search():
-    """Прокси для локального API"""
+    """Прокси для локального API через ngrok туннель"""
     try:
         data = request.get_json()
         query = data.get('query', '').strip()
@@ -313,28 +313,42 @@ def search():
         
         print(f"🌐 Облако: получен запрос '{query}'")
         
-        # Отправляем на локальный API
+        # Отправляем на локальный API через ngrok туннель
         import requests
         try:
             response = requests.post(
-                'http://127.0.0.1:5000/api/search',
+                'https://criteria-waviness-entangled.ngrok-free.dev/api/search',
                 json={'query': query},
-                timeout=5
+                timeout=10
             )
-            return jsonify(response.json())
-        except:
-            # Если локальный API недоступен, возвращаем ошибку
+            result = response.json()
+            print(f"✅ Облако: получен ответ с {len(result.get('products', []))} товарами")
+            return jsonify(result)
+        except requests.exceptions.ConnectionError as e:
+            print(f"⚠️ Ошибка подключения к туннелю: {e}")
             return jsonify({
-                "error": "Локальный сервер недоступен. Убедитесь что бот запущен на компьютере.",
+                "error": "⚠️ Локальный сервер недоступен. Убедитесь что ngrok туннель запущен: ngrok http 5000",
+                "products": []
+            })
+        except Exception as e:
+            print(f"⚠️ Ошибка туннеля: {e}")
+            return jsonify({
+                "error": f"Ошибка при подключении к локальному серверу: {str(e)}",
                 "products": []
             })
     except Exception as e:
         print(f"❌ Ошибка облака: {e}")
-        return jsonify({"error": str(e), "products": []})
+        return jsonify({"error": f"Ошибка сервера: {str(e)}", "products": []})
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "location": "cloud"})
+    """Проверка здоровья сервера"""
+    return jsonify({"status": "ok", "location": "cloud", "tunnel": "ngrok"})
+
+@app.route('/', methods=['GET'])
+def index():
+    """Главная страница"""
+    return jsonify({"status": "ARMOR HAND Cloud Server Online", "version": "2.0", "tunnel": "ngrok"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
@@ -342,6 +356,7 @@ if __name__ == '__main__':
     print("🛡️  ARMOR HAND - Облачный Mini App на Render".center(70))
     print("="*70)
     print(f"✅ Mini App: https://ttz-sales-department.onrender.com/webapp")
-    print("✅ API прокси подключена к локальному боту")
+    print(f"🌐 Туннель ngrok: https://criteria-waviness-entangled.ngrok-free.dev")
+    print("✅ API прокси подключена к локальному боту через ngrok")
     print("="*70 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)
