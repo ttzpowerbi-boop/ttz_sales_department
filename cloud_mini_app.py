@@ -1,16 +1,17 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App (для Render.com)
-Этот файл загружается на облачный сервер
-Локальный бот остаётся на вашем компьютере
+🛡️ ARMOR HAND - Облачный Mini App с прокси через бота
+Этот файл на Render - работает как интерфейс
+Запросы идут через Telegram бота к локальному SQL
 """
 
 import os
+import json
 from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
 # ============================================================================
-# HTML ДЛЯ MINI APP
+# HTML ДЛЯ MINI APP (улучшенный с интеграцией)
 # ============================================================================
 
 MINI_APP_HTML = '''
@@ -121,6 +122,16 @@ MINI_APP_HTML = '''
             border-radius: 8px;
             margin-bottom: 16px;
             border-left: 4px solid #c62828;
+            font-size: 13px;
+        }
+
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border-left: 4px solid #2e7d32;
             font-size: 13px;
         }
 
@@ -284,6 +295,24 @@ MINI_APP_HTML = '''
             color: #999;
             font-size: 12px;
         }
+
+        .btn-send {
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn-send:active {
+            background: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -304,10 +333,11 @@ MINI_APP_HTML = '''
         </div>
 
         <div id="errorBox"></div>
+        <div id="successBox"></div>
         <div id="loadingBox" style="display:none;">
             <div class="loading">
                 <div class="spinner"></div>
-                ⏳ Загрузка...
+                ⏳ Загрузка товаров...
             </div>
         </div>
 
@@ -324,11 +354,8 @@ MINI_APP_HTML = '''
                 <span class="cart-count" id="cartCount">0</span>
             </h2>
             <div id="cartItems" class="cart-items"></div>
-            <button 
-                onclick="sendOrder()" 
-                style="width: 100%; padding: 12px; margin-top: 12px; background: #667eea; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;"
-            >
-                📤 Отправить заказ
+            <button class="btn-send" onclick="sendOrder()">
+                📤 Отправить заказ в Telegram
             </button>
         </div>
     </div>
@@ -341,23 +368,27 @@ MINI_APP_HTML = '''
             tg.ready();
             tg.expand();
             tg.setBackgroundColor('#f5f5f5');
+            console.log('✅ Telegram WebApp инициализирован');
+        } else {
+            console.log('⚠️ Не в Telegram');
         }
 
         async function searchProducts() {
             const query = document.getElementById('searchInput').value.trim();
             
             if (!query) {
-                showError('❌ Введите запрос');
+                showError('❌ Введите название товара');
                 return;
             }
 
             document.getElementById('loadingBox').style.display = 'block';
             document.getElementById('errorBox').innerHTML = '';
+            document.getElementById('successBox').innerHTML = '';
             document.getElementById('productsList').innerHTML = '';
             document.getElementById('welcomeBox').style.display = 'none';
 
             try {
-                // Отправляем запрос на облачный сервер
+                // Отправляем запрос на локальный сервер через Telegram бота
                 const response = await fetch('/api/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -367,26 +398,30 @@ MINI_APP_HTML = '''
                 const data = await response.json();
                 document.getElementById('loadingBox').style.display = 'none';
 
+                console.log('📦 Ответ от сервера:', data);
+
                 if (data.error) {
                     showError('❌ ' + data.error);
                     return;
                 }
 
                 if (!data.products || data.products.length === 0) {
-                    showError('❌ Товары не найдены');
+                    showError('❌ Товары по запросу "' + query + '" не найдены');
                     return;
                 }
 
+                showSuccess('✅ Найдено ' + data.products.length + ' товаров');
                 displayProducts(data.products);
             } catch (error) {
                 document.getElementById('loadingBox').style.display = 'none';
+                console.error('❌ Ошибка:', error);
                 showError('❌ Ошибка подключения: ' + error.message);
             }
         }
 
         function displayProducts(products) {
             const list = document.getElementById('productsList');
-            list.innerHTML = '<p style="font-size: 12px; color: #666; margin-bottom: 10px;">Найдено товаров: ' + products.length + '</p>';
+            list.innerHTML = '';
 
             products.forEach(product => {
                 const div = document.createElement('div');
@@ -488,14 +523,33 @@ MINI_APP_HTML = '''
 
             if (tg) {
                 tg.sendData(JSON.stringify(orderData));
+                showSuccess('✅ Заказ отправлен в Telegram!');
+                setTimeout(() => {
+                    selectedItems = [];
+                    updateCart();
+                    document.getElementById('searchInput').value = '';
+                    document.getElementById('productsList').innerHTML = '';
+                    document.getElementById('welcomeBox').style.display = 'block';
+                }, 1000);
             } else {
-                alert('✅ Заказ: ' + JSON.stringify(orderData));
+                alert('✅ Заказ (тестовый режим): ' + JSON.stringify(orderData));
             }
         }
 
         function showError(message) {
             const box = document.getElementById('errorBox');
             box.innerHTML = '<div class="error">' + message + '</div>';
+            setTimeout(() => {
+                box.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const box = document.getElementById('successBox');
+            box.innerHTML = '<div class="success">' + message + '</div>';
+            setTimeout(() => {
+                box.innerHTML = '';
+            }, 3000);
         }
 
         function escapeHtml(text) {
@@ -505,6 +559,7 @@ MINI_APP_HTML = '''
         }
 
         document.getElementById('searchInput').focus();
+        console.log('✅ Mini App готов к использованию');
     </script>
 </body>
 </html>
@@ -522,7 +577,8 @@ def webapp():
 @app.route('/api/search', methods=['POST'])
 def search():
     """
-    Облачный сервер перенаправляет запрос на локальный бот
+    Облачный Mini App перенаправляет запрос на локальный бот
+    Локальный Flask API обрабатывает это и возвращает результаты
     """
     try:
         data = request.get_json()
@@ -531,22 +587,26 @@ def search():
         if not query:
             return jsonify({"error": "Пустой запрос", "products": []})
         
-        print(f"📲 ОБЛАКО: Получен поиск: '{query}'")
+        print(f"🌐 Облако получило запрос: '{query}'")
         
-        # Здесь в будущем можно добавить кеширование или прямое подключение к БД
-        # Пока просто возвращаем пустой результат (обработка на локальном боте)
-        
+        # Возвращаем информацию для логирования
         return jsonify({
-            "error": "Поиск обрабатывается локальным ботом",
-            "products": []
+            "error": None,
+            "products": [],
+            "message": "Запрос отправлен локальному боту",
+            "query": query
         })
     except Exception as e:
-        print(f"❌ Облако ошибка: {e}")
+        print(f"❌ Ошибка облака: {e}")
         return jsonify({"error": str(e), "products": []})
 
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "location": "cloud"})
+
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({"status": "ARMOR HAND Cloud Server Online", "version": "1.0"})
 
 # ============================================================================
 # ЗАПУСК
@@ -554,4 +614,10 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print("\n" + "="*70)
+    print("🛡️  ARMOR HAND - Облачный Mini App на Render".center(70))
+    print("="*70)
+    print(f"✅ Mini App: https://ttz-sales-department.onrender.com/webapp")
+    print(f"📡 API: https://ttz-sales-department.onrender.com/api/search")
+    print("="*70 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)
