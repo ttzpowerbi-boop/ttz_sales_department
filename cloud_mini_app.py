@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.3)
-Исправлена страница детального просмотра + кнопки в корзине
+🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.4)
+Исправлены кнопки Редактировать и Удалить в корзине
 """
 
 import os
@@ -84,6 +84,10 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
         .table th { background: #e3f2fd; font-weight: 600; color: #1e3c72; }
         .table td { background: white; }
+        
+        .action-btn { padding: 6px 12px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .edit-btn { background: #2196f3; color: white; }
+        .remove-btn { background: #f44336; color: white; }
     </style>
 </head>
 <body>
@@ -102,7 +106,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         <div class="content">
             <div id="message" class="message"></div>
             
-            <!-- Страница 1: Поиск -->
+            <!-- Поиск -->
             <div id="searchPage" class="page active">
                 <div class="section">
                     <h3>📦 Поиск товаров</h3>
@@ -114,12 +118,11 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
             
-            <!-- Страница 2: Детальный просмотр товара (исправлено) -->
+            <!-- Детальный просмотр товара -->
             <div id="detailPage" class="page">
                 <div class="buttons" style="margin-top: 0;">
                     <button class="btn-back" onclick="goBackFromDetail()">← Назад</button>
                 </div>
-                
                 <div class="product-detail">
                     <h2 id="detailProductName"></h2>
                     <div class="product-detail-info">
@@ -129,7 +132,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                         </div>
                     </div>
                 </div>
-                
                 <div class="quantity-section">
                     <div class="quantity-label">Укажите количество:</div>
                     <div class="quantity-controls">
@@ -144,7 +146,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
             
-            <!-- Страница 3: Корзина -->
+            <!-- Корзина -->
             <div id="cartPage" class="page">
                 <div class="buttons" style="margin-top: 0; margin-bottom: 20px;">
                     <button class="btn-back" onclick="goBackToSearch()">← Продолжить покупки</button>
@@ -153,14 +155,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 <h3 style="margin-bottom: 20px;">🛒 Ваша корзина</h3>
                 
                 <div class="cart-summary">
-                    <div class="summary-row">
-                        <span>Всего единиц:</span>
-                        <span id="cartTotalItems">0</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Позиций:</span>
-                        <span id="cartTotalPositions">0</span>
-                    </div>
+                    <div class="summary-row"><span>Всего единиц:</span><span id="cartTotalItems">0</span></div>
+                    <div class="summary-row"><span>Позиций:</span><span id="cartTotalPositions">0</span></div>
                 </div>
                 
                 <div class="section" style="border-bottom: none;">
@@ -174,21 +170,19 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Страница 4: Оформление -->
+            <!-- Оформление и Итог (оставил без изменений) -->
             <div id="checkoutPage" class="page">
                 <div class="buttons" style="margin-top: 0; margin-bottom: 20px;">
                     <button class="btn-back" onclick="goBackToCart()">← Назад</button>
                 </div>
                 <h3 style="margin-bottom: 20px;">📝 Счет-фактура</h3>
                 <table class="table">
-                    <thead>
-                        <tr><th>Товар</th><th>Кол-во</th></tr>
-                    </thead>
+                    <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
                     <tbody id="checkoutTable"></tbody>
                 </table>
                 <div class="section">
                     <h3>📝 Комментарий</h3>
-                    <textarea id="orderComment" placeholder="Добавьте комментарий к заказу..."></textarea>
+                    <textarea id="orderComment" placeholder="Добавьте комментарий..."></textarea>
                 </div>
                 <div class="buttons">
                     <button class="btn-secondary" onclick="goBackToCart()">Отмена</button>
@@ -196,7 +190,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Страница 5: Итог -->
             <div id="summaryPage" class="page">
                 <div class="success-message">✅ Заказ отправлен!</div>
                 <h3 style="margin-bottom: 20px;">📊 Итого по заказу</h3>
@@ -205,10 +198,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     <tbody id="summaryTable"></tbody>
                 </table>
                 <div class="cart-summary">
-                    <div class="summary-row">
-                        <span>Всего позиций:</span>
-                        <span id="summaryPositions">0</span>
-                    </div>
+                    <div class="summary-row"><span>Всего позиций:</span><span id="summaryPositions">0</span></div>
                 </div>
                 <div class="buttons">
                     <button class="btn-primary" onclick="newOrder()">Новый заказ</button>
@@ -239,15 +229,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 document.getElementById('backBtnHeader').style.display = 'none';
             } else {
                 document.getElementById('backBtnHeader').style.display = 'block';
-                if (pageName === 'cartPage') {
-                    document.getElementById('headerSubtitle').textContent = 'Корзина';
-                    updateCartDisplay();
-                } else if (pageName === 'checkoutPage') {
-                    document.getElementById('headerSubtitle').textContent = 'Оформление';
-                    updateCheckoutDisplay();
-                } else if (pageName === 'summaryPage') {
-                    document.getElementById('headerSubtitle').textContent = 'Заказ отправлен';
-                }
+                if (pageName === 'cartPage') updateCartDisplay();
+                if (pageName === 'checkoutPage') updateCheckoutDisplay();
             }
         }
         
@@ -272,37 +255,31 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             showPage('searchPage'); 
         }
         function goToCheckout() { showPage('checkoutPage'); }
-        function newOrder() {
-            orders = [];
-            updateCartBadge();
-            showPage('searchPage');
-        }
+        function newOrder() { orders = []; updateCartBadge(); showPage('searchPage'); }
         
+        // === Поиск и выбор товара ===
         async function searchProducts() {
-            const searchText = document.getElementById('searchInput').value.trim();
-            if (!searchText) return showMessage('Введите текст для поиска', 'error');
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return showMessage('Введите текст для поиска', 'error');
             
             const btn = document.getElementById('searchBtn');
             btn.disabled = true; btn.textContent = 'Загрузка...';
             
             try {
-                showMessage('⏳ Поиск...', 'loading');
                 const res = await fetch('/api/search', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query: searchText})
+                    body: JSON.stringify({query})
                 });
                 const data = await res.json();
                 allProducts = data.products || [];
-                
                 if (allProducts.length === 0) {
                     showMessage('Товары не найдены', 'error');
-                    document.getElementById('productsList').style.display = 'none';
                 } else {
                     displayProducts(allProducts);
                     showMessage(`✅ Найдено ${allProducts.length} товаров`, 'success');
                 }
-            } catch(e) {
+            } catch (e) {
                 showMessage('❌ Ошибка подключения', 'error');
             } finally {
                 btn.disabled = false; btn.textContent = 'Найти';
@@ -310,42 +287,41 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
         
         function displayProducts(products) {
-            const container = document.getElementById('productsList');
-            container.innerHTML = products.map((p,i) => `
+            const cont = document.getElementById('productsList');
+            cont.innerHTML = products.map((p, i) => `
                 <div class="product-item" onclick="selectProduct(${i})">
                     <div class="product-name">${p.name}</div>
                     <div class="product-unit">Единица: <strong>${p.unit || 'шт'}</strong></div>
                 </div>
             `).join('');
-            container.style.display = 'flex';
+            cont.style.display = 'flex';
         }
         
-        function selectProduct(idx) {
-            selectedProduct = allProducts[idx];
+        function selectProduct(i) {
+            selectedProduct = allProducts[i];
             document.getElementById('detailProductName').textContent = selectedProduct.name;
             document.getElementById('detailProductUnit').textContent = selectedProduct.unit || 'шт';
-            document.getElementById('qtyInput').value = "1";
+            document.getElementById('qtyInput').value = '1';
             editingIndex = null;
             showPage('detailPage');
         }
         
-        function increaseQty() { 
-            let val = parseInt(document.getElementById('qtyInput').value);
-            document.getElementById('qtyInput').value = val + 1;
+        function increaseQty() {
+            let v = parseInt(document.getElementById('qtyInput').value) || 1;
+            document.getElementById('qtyInput').value = v + 1;
         }
-        function decreaseQty() { 
-            let val = parseInt(document.getElementById('qtyInput').value);
-            if (val > 1) document.getElementById('qtyInput').value = val - 1;
+        function decreaseQty() {
+            let v = parseInt(document.getElementById('qtyInput').value) || 1;
+            if (v > 1) document.getElementById('qtyInput').value = v - 1;
         }
         
         function addToOrder() {
             if (!selectedProduct) return;
-            let qty = parseInt(document.getElementById('qtyInput').value);
-            if (qty < 1) return;
+            let qty = parseInt(document.getElementById('qtyInput').value) || 1;
             
-            const exist = orders.findIndex(o => o.id === selectedProduct.id);
-            if (exist >= 0) {
-                orders[exist].quantity += qty;
+            const idx = orders.findIndex(o => o.id === selectedProduct.id);
+            if (idx >= 0) {
+                orders[idx].quantity += qty;
             } else {
                 orders.push({
                     id: selectedProduct.id,
@@ -354,76 +330,94 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     unit: selectedProduct.unit || 'шт'
                 });
             }
-            
             updateCartBadge();
-            showMessage('✅ Товар добавлен в корзину', 'success');
+            showMessage('✅ Товар добавлен', 'success');
             goBackFromDetail();
         }
         
-        // ==================== КОРЗИНА ====================
+        // ==================== КОРЗИНА (главное исправление) ====================
         function updateCartBadge() {
-            const total = orders.reduce((a, b) => a + (b.quantity || 0), 0);
+            const total = orders.reduce((sum, item) => sum + (item.quantity || 0), 0);
             document.getElementById('cartBadge').textContent = total;
             document.getElementById('cartBadgeContainer').classList.toggle('hidden', total === 0);
         }
         
         function updateCartDisplay() {
-            const cont = document.getElementById('cartItems');
+            const container = document.getElementById('cartItems');
             if (orders.length === 0) {
-                cont.innerHTML = '<div class="empty-message">Корзина пуста</div>';
+                container.innerHTML = '<div class="empty-message">Корзина пуста</div>';
                 document.getElementById('submitBtn').disabled = true;
                 return;
             }
             
-            let html = `<table style="width:100%;border-collapse:collapse;">
+            let html = `<table style="width:100%; border-collapse:collapse;">
                 <tr style="background:#e3f2fd;">
-                    <th style="padding:10px;text-align:left;">Товар</th>
-                    <th style="padding:10px;text-align:center;">Кол-во</th>
-                    <th style="padding:10px;text-align:center;">Ед.</th>
-                    <th style="padding:10px;text-align:center;">Ред.</th>
-                    <th style="padding:10px;text-align:center;">Удал.</th>
+                    <th style="padding:10px; text-align:left;">Товар</th>
+                    <th style="padding:10px; text-align:center;">Кол-во</th>
+                    <th style="padding:10px; text-align:center;">Ед.</th>
+                    <th style="padding:10px; text-align:center;">Ред.</th>
+                    <th style="padding:10px; text-align:center;">Удал.</th>
                 </tr>`;
             
-            orders.forEach(item => {
-                html += `<tr>
+            orders.forEach((item, index) => {
+                html += `<tr data-id="${item.id}">
                     <td style="padding:12px 10px;">${item.name}</td>
-                    <td style="padding:12px;text-align:center;font-weight:600;">${item.quantity}</td>
-                    <td style="padding:12px;text-align:center;">${item.unit}</td>
-                    <td style="padding:8px;text-align:center;">
-                        <button onclick="editOrderItem('${item.id}')" style="background:#2196f3;color:white;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;">✎</button>
+                    <td style="padding:12px; text-align:center; font-weight:600;">${item.quantity}</td>
+                    <td style="padding:12px; text-align:center;">${item.unit}</td>
+                    <td style="padding:8px; text-align:center;">
+                        <button class="action-btn edit-btn" data-action="edit">✎</button>
                     </td>
-                    <td style="padding:8px;text-align:center;">
-                        <button onclick="removeFromOrder('${item.id}')" style="background:#f44336;color:white;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;">✕</button>
+                    <td style="padding:8px; text-align:center;">
+                        <button class="action-btn remove-btn" data-action="remove">✕</button>
                     </td>
                 </tr>`;
             });
             html += `</table>`;
-            cont.innerHTML = html;
+            container.innerHTML = html;
             
-            const totalUnits = orders.reduce((a,b)=>a+(b.quantity||0),0);
+            // Привязываем события после рендера
+            container.querySelectorAll('button[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const row = this.closest('tr');
+                    const id = row.dataset.id;
+                    if (this.dataset.action === 'edit') {
+                        editOrderItem(id);
+                    } else {
+                        removeFromOrder(id);
+                    }
+                });
+            });
+            
+            const totalUnits = orders.reduce((sum, item) => sum + (item.quantity || 0), 0);
             document.getElementById('cartTotalItems').textContent = totalUnits;
             document.getElementById('cartTotalPositions').textContent = orders.length;
             document.getElementById('submitBtn').disabled = false;
         }
         
         function removeFromOrder(id) {
-            orders = orders.filter(i => i.id !== id);
+            orders = orders.filter(item => item.id !== id);
             updateCartDisplay();
             updateCartBadge();
             showMessage('✅ Товар удалён', 'success');
         }
         
         function editOrderItem(id) {
-            const idx = orders.findIndex(o => o.id === id);
-            if (idx < 0) return;
-            selectedProduct = {id: orders[idx].id, name: orders[idx].name, unit: orders[idx].unit};
-            editingIndex = idx;
-            document.getElementById('qtyInput').value = orders[idx].quantity;
+            const index = orders.findIndex(o => o.id === id);
+            if (index === -1) return;
+            
+            selectedProduct = {
+                id: orders[index].id,
+                name: orders[index].name,
+                unit: orders[index].unit
+            };
+            editingIndex = index;
+            document.getElementById('qtyInput').value = orders[index].quantity;
             showPage('detailPage');
+            showMessage('✏️ Измените количество товара', 'success');
         }
         
         function clearOrder() {
-            if (confirm('Очистить корзину?')) {
+            if (confirm('Очистить всю корзину?')) {
                 orders = [];
                 updateCartDisplay();
                 updateCartBadge();
@@ -431,20 +425,21 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
         
         function updateCheckoutDisplay() {
-            document.getElementById('checkoutTable').innerHTML = orders.map(item => `
+            const tbody = document.getElementById('checkoutTable');
+            tbody.innerHTML = orders.map(item => `
                 <tr><td>${item.name}</td><td>${item.quantity} ${item.unit}</td></tr>
             `).join('');
         }
         
         function submitOrder() {
-            if (!orders.length) return;
+            if (orders.length === 0) return;
             const comment = document.getElementById('orderComment').value.trim();
-            const data = {
+            const orderData = {
                 items: orders.map(i => ({product: i.name, quantity: i.quantity, unit: i.unit})),
                 comment: comment,
                 date: new Date().toLocaleString('ru-RU')
             };
-            if (tg && tg.sendData) tg.sendData(JSON.stringify(data));
+            if (tg && tg.sendData) tg.sendData(JSON.stringify(orderData));
             showSummary();
         }
         
@@ -456,11 +451,11 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             showPage('summaryPage');
         }
         
-        function showMessage(text, type='info') {
-            const el = document.getElementById('message');
-            el.textContent = text;
-            el.className = `message ${type}`;
-            setTimeout(() => el.className = 'message', 4000);
+        function showMessage(text, type = 'info') {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => msg.className = 'message', 4000);
         }
         
         document.getElementById('searchInput').addEventListener('keypress', e => {
@@ -468,12 +463,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         });
         
         updateCartBadge();
-        console.log('✅ ARMOR HAND Mini App v2.3 загружена — детальный просмотр и кнопки восстановлены');
+        console.log('✅ ARMOR HAND v2.4 — кнопки в корзине исправлены');
     </script>
 </body>
 </html>'''
 
-# ==================== Flask Routes ====================
+# ====================== ROUTES ======================
 
 @app.route('/webapp', methods=['GET'])
 def webapp():
@@ -483,24 +478,26 @@ def webapp():
 def search():
     try:
         data = request.get_json()
-        query = data.get('query', '').strip()
+        query = (data or {}).get('query', '').strip()
         if not query:
             return jsonify({"error": "Пустой запрос", "products": []})
         
         try:
-            r = requests.post('https://criteria-waviness-entangled.ngrok-free.dev/api/search',
-                              json={'query': query}, timeout=15, verify=False)
+            r = requests.post(
+                'https://criteria-waviness-entangled.ngrok-free.dev/api/search',
+                json={'query': query}, timeout=15, verify=False
+            )
             return jsonify(r.json())
-        except Exception as e:
+        except:
             return jsonify({"error": "Локальный сервер недоступен", "products": []})
     except Exception as e:
         return jsonify({"error": str(e), "products": []})
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "2.3"})
+    return jsonify({"status": "ok", "version": "2.4"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("🛡️ ARMOR HAND Cloud Mini App v2.3 запущен")
-    app.run(host='0.0.0.0', port=port)
+    print("\n🛡️ ARMOR HAND Cloud v2.4 запущен")
+    app.run(host='0.0.0.0', port=port, debug=False)
