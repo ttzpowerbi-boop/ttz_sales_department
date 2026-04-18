@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.4
-Максимально надёжная инициализация Telegram + выбор товара
+🛡️ ARMOR HAND - Облачный Mini App v5.5
+Максимально простая и надёжная версия — должна открываться из бота
 """
 
 import os
@@ -163,37 +163,35 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 let tg = null;
 let cart = [];
 
-function initTelegram() {
-    console.log("🔍 Запуск проверки Telegram...");
+// Самая надёжная инициализация
+function startApp() {
+    console.log("🔍 Пытаюсь инициализировать Telegram...");
 
-    const tryInit = () => {
+    const init = () => {
         if (window.Telegram && window.Telegram.WebApp) {
-            const webApp = window.Telegram.WebApp;
+            tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
             
-            if (webApp.initData && webApp.initData.length > 10) {
-                tg = webApp;
-                tg.ready();
-                tg.expand();
-                
-                document.querySelector('.app').style.display = 'block';
-                document.getElementById('error-screen').style.display = 'none';
-                
-                console.log("✅ Успешно запущено внутри Telegram Mini App");
-                return true;
-            }
+            // Показываем приложение
+            document.querySelector('.app').style.display = 'block';
+            document.getElementById('error-screen').style.display = 'none';
+            
+            console.log("✅ Mini App успешно запущен внутри Telegram");
+            return true;
         }
         return false;
     };
 
-    // Несколько попыток с разными задержками
-    if (tryInit()) return;
-    setTimeout(tryInit, 300);
-    setTimeout(tryInit, 800);
-    setTimeout(tryInit, 1500);
-    setTimeout(tryInit, 2500);
+    // Несколько попыток
+    if (init()) return;
+    setTimeout(init, 300);
+    setTimeout(init, 800);
+    setTimeout(init, 1500);
+    setTimeout(init, 2500);
 }
 
-window.onload = initTelegram;
+window.onload = startApp;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -324,5 +322,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.4 — максимальная надёжность инициализации")
+    print("\n🛡️ ARMOR HAND Cloud v5.5 — упрощённая инициализация")
     app.run(host='0.0.0.0', port=port, debug=False)
