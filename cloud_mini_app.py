@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.5
-Максимально простая и надёжная версия — должна открываться из бота
+🛡️ ARMOR HAND - Облачный Mini App v5.6
+Простая версия без строгой проверки — должна открываться из бота
 """
 
 import os
@@ -46,7 +46,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             text-align: center;
         }
         
-        .app { display: none; }
+        .app { display: block; } /* Показываем сразу */
         .container { 
             max-width: 600px; 
             margin: 0 auto; 
@@ -163,32 +163,20 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 let tg = null;
 let cart = [];
 
-// Самая надёжная инициализация
+// Простая инициализация
 function startApp() {
-    console.log("🔍 Пытаюсь инициализировать Telegram...");
-
-    const init = () => {
-        if (window.Telegram && window.Telegram.WebApp) {
-            tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            
-            // Показываем приложение
-            document.querySelector('.app').style.display = 'block';
-            document.getElementById('error-screen').style.display = 'none';
-            
-            console.log("✅ Mini App успешно запущен внутри Telegram");
-            return true;
-        }
-        return false;
-    };
-
-    // Несколько попыток
-    if (init()) return;
-    setTimeout(init, 300);
-    setTimeout(init, 800);
-    setTimeout(init, 1500);
-    setTimeout(init, 2500);
+    if (window.Telegram && window.Telegram.WebApp) {
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        console.log("✅ Telegram WebApp инициализирован");
+    } else {
+        console.log("⚠️ Запущено не в Telegram");
+    }
+    
+    // Показываем приложение в любом случае
+    document.querySelector('.app').style.display = 'block';
+    document.getElementById('error-screen').style.display = 'none';
 }
 
 window.onload = startApp;
@@ -322,5 +310,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.5 — упрощённая инициализация")
+    print("\n🛡️ ARMOR HAND Cloud v5.6 — простая версия без строгой проверки")
     app.run(host='0.0.0.0', port=port, debug=False)
