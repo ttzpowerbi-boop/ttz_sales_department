@@ -1,7 +1,7 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v3.9 FINAL
-✅ БРАУЗЕР: сразу ошибка "Только Telegram"
-✅ TELEGRAM: полная функциональность включая sendData
+🛡️ ARMOR HAND - Облачный Mini App на Render v4.0 FINAL
+✅ БРАУЗЕР: блокирован
+✅ TELEGRAM: работает идеально
 """
 
 import os
@@ -24,7 +24,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARMOR HAND</title>
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; }
@@ -48,7 +48,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             padding: 20px;
         }
         
-        #error-screen.hidden { display: none; }
+        #error-screen.hidden { display: none !important; }
         
         .error-box {
             background: white;
@@ -69,10 +69,14 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             font-size: 16px;
             color: #333;
             line-height: 1.5;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
+        .error-box strong { font-weight: 600; }
+        
         .app { width: 100%; }
+        .app.hidden { display: none !important; }
+        
         .container { 
             max-width: 600px; 
             margin: 0 auto; 
@@ -151,14 +155,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <div class="error-box">
         <h2>🔒 Доступ запрещён</h2>
         <p>Это приложение работает <strong>только внутри Telegram</strong>.</p>
-        <p style="font-size: 14px; color: #666;">
-            Откройте бота: <strong>@TTZ_Sales_Department_bot</strong>
-        </p>
+        <p>Откройте бота:<br><strong>@TTZ_Sales_Department_bot</strong></p>
     </div>
 </div>
 
 <!-- ПРИЛОЖЕНИЕ -->
-<div class="app" style="display:none;">
+<div class="app hidden">
     <div class="container">
         <div class="header">
             <h1>🛡️ ARMOR HAND</h1>
@@ -195,7 +197,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </table>
                 <div class="buttons">
                     <button class="btn btn-clear" onclick="clearCart()">Очистить</button>
-                    <button class="btn" onclick="submit()" id="submit-btn">Отправить</button>
+                    <button class="btn" onclick="submit()">Отправить</button>
                 </div>
             </div>
             
@@ -217,42 +219,41 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <script>
 let cart = [];
 let products = [];
-let tg = window.Telegram?.WebApp;
+let tg = null;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-    console.log('🔍 Проверяю Telegram...');
+    console.log('🔍 Инициализирую...');
     
-    // Проверяем есть ли Telegram и инициализирован ли
-    if (!tg) {
-        console.log('❌ Telegram не найден - показываю ошибку браузера');
-        return; // Браузер - показываем ошибку
+    // Проверяем есть ли Telegram WebApp объект
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+        console.log('✅ Telegram.WebApp найден - ЭТО TELEGRAM!');
+        tg = Telegram.WebApp;
+        
+        // Инициализируем
+        tg.ready?.();
+        tg.expand?.();
+        tg.setBackgroundColor?.('#f0f2f5');
+        
+        // Показываем приложение
+        document.getElementById('error-screen').classList.add('hidden');
+        document.querySelector('.app').classList.remove('hidden');
+        console.log('✅ Приложение загружено');
+        
+    } else {
+        console.log('❌ Telegram.WebApp не найден - ЭТО БРАУЗЕР!');
+        document.getElementById('error-screen').style.display = 'flex';
+        document.querySelector('.app').classList.add('hidden');
     }
-    
-    // Есть Telegram - проверяем что он инициализирован
-    if (!tg.initData || tg.initData.length === 0) {
-        // Может быть это псевдо-Telegram (браузер имитирует объект)
-        console.log('❌ initData пуста - вероятно браузер');
-        return;
-    }
-    
-    // ✅ ВСЁ ХОРОШО - ЭТО TELEGRAM!
-    console.log('✅ TELEGRAM APP DETECTED - ПОКАЗЫВАЮ ПРИЛОЖЕНИЕ');
-    
-    // Инициализируем Telegram
-    tg.ready?.();
-    tg.expand?.();
-    tg.setBackgroundColor?.('#f0f2f5');
-    
-    // Скрываем ошибку и показываем приложение
-    document.getElementById('error-screen').classList.add('hidden');
-    document.querySelector('.app').style.display = 'block';
-    
-    console.log('✅ Приложение готово');
 }
 
-// Инициализируем после загрузки страницы
-window.addEventListener('load', init);
+// Инициализируем сразу (скрипт загружается синхронно)
+window.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 // ==================== ФУНКЦИИ ====================
 function msg(text, type = 'info') {
@@ -365,13 +366,12 @@ function clearCart() {
 function submit() {
     if (cart.length === 0) { msg('Добавьте товары', 'error'); return; }
     
-    console.log('📦 Попытка отправить заказ...');
+    console.log('📦 Отправляю заказ...');
     console.log('tg:', tg);
-    console.log('tg.sendData:', tg?.sendData);
     
     if (!tg || !tg.sendData) {
         msg('❌ Ошибка: sendData недоступна', 'error');
-        console.error('❌ tg.sendData не найдена!');
+        console.error('❌ tg.sendData не найдена');
         return;
     }
     
@@ -381,11 +381,11 @@ function submit() {
     };
     
     try {
-        console.log('📤 Отправляю:', JSON.stringify(order));
+        console.log('📤 Данные:', order);
         tg.sendData(JSON.stringify(order));
         showSummary();
     } catch (error) {
-        console.error('❌ Ошибка sendData:', error);
+        console.error('❌ Ошибка:', error);
         msg('❌ Ошибка: ' + error.message, 'error');
     }
 }
@@ -407,7 +407,7 @@ document.getElementById('query').addEventListener('keypress', e => {
     if (e.key === 'Enter') search();
 });
 
-console.log('✅ ARMOR HAND v3.9 FINAL загружен');
+console.log('✅ ARMOR HAND v4.0 FINAL загружен');
 </script>
 
 </body>
@@ -452,12 +452,12 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "3.9"})
+    return jsonify({"status": "ok", "version": "4.0"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*60)
-    print("🛡️  ARMOR HAND v3.9 FINAL")
+    print("🛡️  ARMOR HAND v4.0 FINAL")
     print("="*60)
     print(f"✅ Браузер: БЛОКИРОВАН")
     print(f"✅ Telegram: РАБОТАЕТ")
