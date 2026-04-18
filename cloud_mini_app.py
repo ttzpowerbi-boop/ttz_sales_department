@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.2
-Исправлено: выбор товара + добавление в корзину
+🛡️ ARMOR HAND - Облачный Mini App v5.3 FINAL
+Исправлена инициализация Telegram + выбор товара
 """
 
 import os
@@ -25,15 +25,43 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <script src="https://telegram.org/js/telegram-web-app.js" async></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f0f2f5; 
+            color: #333; 
+            height: 100vh; 
+            overflow: hidden; 
+            margin: 0;
+        }
         
-        #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-        .error-box { background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center; }
-        .error-box h2 { color: #c62828; font-size: 24px; margin-bottom: 20px; }
+        #error-screen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999; 
+            padding: 20px; 
+            color: white;
+            text-align: center;
+        }
         
         .app { display: none; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; text-align: center; }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+            overflow: hidden; 
+            min-height: 100vh; 
+        }
+        .header { 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+            color: white; 
+            padding: 20px; 
+            text-align: center; 
+        }
         .header h1 { font-size: 24px; margin-bottom: 5px; }
         .content { padding: 20px; }
         .page { display: none; }
@@ -68,7 +96,14 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .edit-btn { background: #2196f3; color: white; }
         .remove-btn { background: #f44336; color: white; }
         
-        .message { padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; }
+        .message { 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            display: none; 
+            text-align: center; 
+            font-weight: 600; 
+        }
         .message.success { background: #c8e6c9; color: #2e7d32; display: block; }
         .message.error { background: #ffcdd2; color: #c62828; display: block; }
         
@@ -80,14 +115,17 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 </head>
 <body>
 
+<!-- Блокировка для браузера -->
 <div id="error-screen">
     <div class="error-box">
         <h2>🔒 Доступ запрещён</h2>
         <p>Это приложение работает <strong>только внутри Telegram</strong>.</p>
-        <p>Откройте через бота: <strong>@TTZ_Sales_Department_bot</strong></p>
+        <p>Откройте его через бота:</p>
+        <p><strong>@TTZ_Sales_Department_bot</strong></p>
     </div>
 </div>
 
+<!-- Основное приложение -->
 <div class="app">
     <div class="container">
         <div class="header">
@@ -127,23 +165,33 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 let tg = null;
 let cart = [];
 
-function initApp() {
-    const check = () => {
-        if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 5) {
-            tg = Telegram.WebApp;
+function initTelegram() {
+    console.log("🔍 Проверка Telegram окружения...");
+    
+    const tryInit = () => {
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData && window.Telegram.WebApp.initData.length > 10) {
+            tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
+            
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            console.log('✅ Запущено внутри Telegram');
+            
+            console.log("✅ Успешно запущено внутри Telegram Mini App");
             return true;
         }
         return false;
     };
-    if (check()) return;
-    setTimeout(check, 600);
+
+    // Несколько попыток с задержкой
+    if (tryInit()) return;
+    setTimeout(tryInit, 400);
+    setTimeout(tryInit, 900);
+    setTimeout(tryInit, 1600);
 }
-window.onload = initApp;
+
+// Запуск
+window.onload = initTelegram;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -153,7 +201,7 @@ function showPage(page) {
 
 async function searchProducts() {
     const query = document.getElementById('searchInput').value.trim();
-    if (!query) return showMessage('Введите запрос для поиска', 'error');
+    if (!query) return showMessage('Введите запрос', 'error');
     
     try {
         const res = await fetch('/api/search', {
@@ -181,8 +229,7 @@ async function searchProducts() {
             showMessage('❌ Товары не найдены', 'error');
         }
     } catch (e) {
-        showMessage('❌ Ошибка соединения с сервером', 'error');
-        console.error(e);
+        showMessage('❌ Ошибка соединения', 'error');
     }
 }
 
@@ -196,7 +243,7 @@ function addToCart(name, unit) {
     
     showMessage('✅ Товар добавлен в корзину', 'success');
     updateCartDisplay();
-    showPage('cart');   // сразу переходим в корзину
+    showPage('cart');
 }
 
 function updateCartDisplay() {
@@ -209,28 +256,26 @@ function updateCartDisplay() {
             <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td>
         </tr>`;
     });
-    document.getElementById('cartBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:#999; padding:30px;">Корзина пуста</td></tr>';
+    document.getElementById('cartBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#999;padding:40px;">Корзина пуста</td></tr>';
 }
 
 function editItem(index) {
-    const newQty = prompt(`Новое количество для товара:\n${cart[index].name}`, cart[index].qty);
-    if (newQty !== null && !isNaN(newQty) && parseInt(newQty) > 0) {
+    const newQty = prompt(`Новое количество для:\n${cart[index].name}`, cart[index].qty);
+    if (newQty && !isNaN(newQty) && parseInt(newQty) > 0) {
         cart[index].qty = parseInt(newQty);
         updateCartDisplay();
-        showMessage('✅ Количество изменено', 'success');
     }
 }
 
 function removeItem(index) {
-    if (confirm('Удалить этот товар из корзины?')) {
+    if (confirm('Удалить товар?')) {
         cart.splice(index, 1);
         updateCartDisplay();
-        showMessage('🗑️ Товар удалён', 'success');
     }
 }
 
 function clearCart() {
-    if (confirm('Очистить всю корзину?')) {
+    if (confirm('Очистить корзину?')) {
         cart = [];
         updateCartDisplay();
     }
@@ -238,15 +283,14 @@ function clearCart() {
 
 function showPreview() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
-    // Здесь можно добавить страницу предпросмотра позже
-    alert('Функция предварительного просмотра будет добавлена в следующей версии.\n\nЗаказ содержит ' + cart.length + ' позиций.');
+    alert('Предварительный просмотр будет добавлен в следующей версии.\n\nВ корзине ' + cart.length + ' товаров.');
 }
 
 function showMessage(text, type) {
     const msg = document.getElementById('message');
     msg.textContent = text;
     msg.className = `message ${type}`;
-    setTimeout(() => msg.className = 'message', 3500);
+    setTimeout(() => msg.className = 'message', 4000);
 }
 </script>
 </body>
@@ -278,5 +322,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.2 — выбор товара исправлен")
+    print("\n🛡️ ARMOR HAND Cloud v5.3 — исправлена инициализация и выбор товара")
     app.run(host='0.0.0.0', port=port, debug=False)
