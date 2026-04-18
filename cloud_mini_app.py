@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.2
-ИСПРАВЛЕНА инициализация Telegram в Mini App контексте
+🛡️ ARMOR HAND - Облачный Mini App v5.0+
+Рабочая v5.0 + Мои заказы + Excel + PDF
 """
 
 import os
@@ -22,30 +22,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARMOR HAND</title>
-    <!-- Telegram WebApp JS - встроенный -->
-    <script>
-        // Если скрипт не загрузился с CDN, создаём stub
-        if (!window.Telegram) {
-            window.Telegram = {};
-        }
-        if (!window.Telegram.WebApp) {
-            window.Telegram.WebApp = {
-                ready: function() {},
-                expand: function() {},
-                sendData: function(data) {
-                    console.log('WebApp.sendData:', data);
-                },
-                initData: '',
-                initDataUnsafe: {}
-            };
-        }
-    </script>
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script src="https://telegram.org/js/telegram-web-app.js" async></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
         
-        #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+        #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
         .error-box { background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center; }
         .error-box h2 { color: #c62828; font-size: 24px; margin-bottom: 20px; }
         
@@ -84,6 +66,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
+        .btn-danger { background: #f44336; }
         
         textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         
@@ -92,8 +75,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .order-id { font-weight: 600; color: #1e3c72; }
         .order-date { font-size: 12px; color: #666; margin-top: 4px; }
         .order-items { font-size: 12px; color: #666; margin-top: 6px; }
-        
-        h3 { margin: 15px 0 10px 0; }
     </style>
 </head>
 <body>
@@ -190,37 +171,21 @@ let orders = JSON.parse(localStorage.getItem('armorOrders') || '[]');
 let currentOrder = null;
 
 function initApp() {
-    try {
-        // Telegram.WebApp создан выше (либо CDN, либо stub)
-        if (window.Telegram && window.Telegram.WebApp) {
-            tg = window.Telegram.WebApp;
-            
-            // Вызываем методы если существуют
-            if (tg.ready) tg.ready();
-            if (tg.expand) tg.expand();
-            
-            // ПОКАЗЫВАЕМ ПРИЛОЖЕНИЕ
+    const check = () => {
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 5) {
+            tg = Telegram.WebApp;
+            tg.ready();
+            tg.expand();
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            console.log('✅ Telegram WebApp готов к работе');
             return true;
         }
-    } catch (e) {
-        console.error('⚠️ Ошибка инициализации:', e);
-    }
-    
-    // Fallback - показываем ошибку только если вообще нет Telegram
-    console.warn('⚠️ Telegram не доступен (возможно браузер)');
-    return false;
+        return false;
+    };
+    if (check()) return;
+    setTimeout(check, 600);
 }
-
-// Инициализируем после загрузки всего
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-} else {
-    initApp();
-}
-setTimeout(initApp, 100);
+window.onload = initApp;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -345,21 +310,23 @@ function confirmAndSend() {
     localStorage.setItem('armorOrders', JSON.stringify(orders));
     
     if (tg && tg.sendData) {
-        const telegramData = {
+        const orderData = {
             items: cart,
             comment: comment,
             timestamp: new Date().toLocaleString('ru-RU')
         };
-        tg.sendData(JSON.stringify(telegramData));
+        tg.sendData(JSON.stringify(orderData));
+        
+        showMessage('✅ Заказ успешно отправлен в бота!', 'success');
+        
+        setTimeout(() => {
+            cart = [];
+            updateCartDisplay();
+            showPage('search');
+        }, 1800);
+    } else {
+        showMessage('❌ Ошибка отправки', 'error');
     }
-    
-    showMessage('✅ Заказ успешно отправлен в бота!', 'success');
-    
-    setTimeout(() => {
-        cart = [];
-        updateCartDisplay();
-        showPage('search');
-    }, 1800);
 }
 
 function renderOrders() {
@@ -480,5 +447,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.2 — исправлена инициализация Telegram")
+    print("\n🛡️ ARMOR HAND Cloud v5.0+ — рабочая v5.0 + Мои заказы + Excel + PDF")
     app.run(host='0.0.0.0', port=port, debug=False)
