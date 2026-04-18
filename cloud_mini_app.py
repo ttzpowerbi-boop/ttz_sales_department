@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.8 STABLE
-Исправлено: поиск и клики в Telegram + полный URL для fetch
+🛡️ ARMOR HAND - Облачный Mini App v6.0 STABLE + новые функции
+Восстановлена рабочая логика + добавлены: Предпросмотр, Номер заказа, Мои заказы
 """
 
 import os
@@ -54,6 +54,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
+        .order-number { font-size: 18px; font-weight: bold; color: #2a5298; }
     </style>
 </head>
 <body>
@@ -72,7 +73,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         </div>
         <div class="content">
             <div id="message" class="message"></div>
-            
+
             <!-- Поиск -->
             <div id="searchPage" class="page active">
                 <div class="search-box">
@@ -81,7 +82,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
                 <div id="productsList" class="products" style="display:none;"></div>
             </div>
-            
+
             <!-- Корзина -->
             <div id="cartPage" class="page">
                 <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
@@ -89,8 +90,27 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 <table id="cartTable"><thead><tr><th>Товар</th><th>Кол-во</th><th>Ред.</th><th>Удал.</th></tr></thead><tbody id="cartBody"></tbody></table>
                 <div class="buttons">
                     <button class="btn btn-secondary" onclick="clearCart()">Очистить</button>
-                    <button class="btn btn-primary" onclick="showPreview()">Предварительный просмотр</button>
+                    <button class="btn btn-primary" onclick="showPreviewPage()">Предварительный просмотр</button>
                 </div>
+            </div>
+
+            <!-- Предпросмотр (ЭСФ) -->
+            <div id="previewPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('cart')" style="margin-bottom:15px;">← Назад в корзину</button>
+                <h3>📋 Предварительный просмотр заказа</h3>
+                <table id="previewTable"><thead><tr><th>Товар</th><th>Кол-во</th></tr></thead><tbody id="previewBody"></tbody></table>
+                <textarea id="comment" rows="3" style="width:100%; margin:15px 0; padding:12px; border-radius:8px; border:2px solid #ddd;" placeholder="Комментарий к заказу (необязательно)"></textarea>
+                <div class="buttons">
+                    <button class="btn btn-secondary" onclick="showPage('cart')">Отмена</button>
+                    <button class="btn btn-primary" onclick="confirmOrder()">Подтвердить и отправить заказ</button>
+                </div>
+            </div>
+
+            <!-- Мои заказы -->
+            <div id="ordersPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
+                <h3>📦 Мои предзаказы</h3>
+                <div id="ordersList"></div>
             </div>
         </div>
     </div>
@@ -99,34 +119,36 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <script>
 let tg = null;
 let cart = [];
+let orders = JSON.parse(localStorage.getItem('armorOrders') || '[]');
 
 function startApp() {
-    console.log("%c🚀 ARMOR HAND v5.8 запущен", "color: #2a5298; font-weight: bold");
-    
+    console.log("%c🚀 ARMOR HAND v6.0 STABLE запущен", "color:#2a5298;font-weight:bold");
     if (window.Telegram && window.Telegram.WebApp) {
         tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        console.log("✅ Telegram WebApp успешно инициализирован");
     }
-    
     document.querySelector('.app').style.display = 'block';
     document.getElementById('error-screen').style.display = 'none';
+    renderOrders(); // загружаем историю
 }
-
 window.onload = startApp;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(page + 'Page').classList.add('active');
-    document.getElementById('headerTitle').textContent = page === 'search' ? 'Форма предзаказа' : 'Ваша корзина';
+    document.getElementById('headerTitle').textContent = {
+        'search': 'Форма предзаказа',
+        'cart': 'Ваша корзина',
+        'preview': 'Предварительный просмотр',
+        'orders': 'Мои предзаказы'
+    }[page] || 'ARMOR HAND';
 }
 
+// === ПОИСК И КОРЗИНА (рабочая логика) ===
 async function searchProducts() {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return showMessage('Введите запрос', 'error');
-    
-    console.log("🔍 Поиск:", query);
     
     try {
         const res = await fetch('https://ttz-sales-department.onrender.com/api/search', {
@@ -134,8 +156,6 @@ async function searchProducts() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({query})
         });
-        
-        console.log("📡 Ответ от сервера:", res.status);
         const data = await res.json();
         
         const list = document.getElementById('productsList');
@@ -156,13 +176,12 @@ async function searchProducts() {
             showMessage('❌ Товары не найдены', 'error');
         }
     } catch (e) {
-        console.error("❌ Ошибка поиска:", e);
-        showMessage('❌ Ошибка соединения с сервером', 'error');
+        console.error(e);
+        showMessage('❌ Ошибка соединения', 'error');
     }
 }
 
 function addToCart(name, unit) {
-    console.log("🛒 Добавлен в корзину:", name);
     const existing = cart.find(item => item.name === name);
     if (existing) existing.qty += 1;
     else cart.push({name: name, qty: 1, unit: unit});
@@ -174,32 +193,106 @@ function addToCart(name, unit) {
 
 function updateCartDisplay() {
     let html = '';
-    cart.forEach((item, index) => {
+    cart.forEach((item, i) => {
         html += `<tr>
             <td>${item.name}</td>
-            <td style="text-align:center; font-weight:600;">${item.qty}</td>
-            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${index})">✎</button></td>
-            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td>
+            <td style="text-align:center;font-weight:600;">${item.qty}</td>
+            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${i})">✎</button></td>
+            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${i})">✕</button></td>
         </tr>`;
     });
     document.getElementById('cartBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#999;padding:40px;">Корзина пуста</td></tr>';
 }
 
-function editItem(index) { /* ... */ const newQty = prompt(`Новое количество для:\n${cart[index].name}`, cart[index].qty); if (newQty && !isNaN(newQty) && parseInt(newQty) > 0) { cart[index].qty = parseInt(newQty); updateCartDisplay(); } }
-function removeItem(index) { if (confirm('Удалить товар?')) { cart.splice(index, 1); updateCartDisplay(); } }
-function clearCart() { if (confirm('Очистить корзину?')) { cart = []; updateCartDisplay(); } }
-function showPreview() { if (cart.length === 0) return showMessage('Корзина пуста', 'error'); alert('Предварительный просмотр будет добавлен позже.\n\nВ корзине сейчас ' + cart.length + ' позиций.'); }
+function editItem(i) {
+    const newQty = prompt(`Новое количество для:\n${cart[i].name}`, cart[i].qty);
+    if (newQty && !isNaN(newQty) && parseInt(newQty) > 0) {
+        cart[i].qty = parseInt(newQty);
+        updateCartDisplay();
+    }
+}
+function removeItem(i) {
+    if (confirm('Удалить товар?')) { cart.splice(i, 1); updateCartDisplay(); }
+}
+function clearCart() {
+    if (confirm('Очистить всю корзину?')) { cart = []; updateCartDisplay(); }
+}
+
+// === НОВЫЕ ФУНКЦИИ ===
+function showPreviewPage() {
+    if (cart.length === 0) return showMessage('Корзина пуста', 'error');
+    const tbody = document.getElementById('previewBody');
+    tbody.innerHTML = cart.map(item => 
+        `<tr><td>${item.name}</td><td style="text-align:center;font-weight:600;">${item.qty}</td></tr>`
+    ).join('');
+    showPage('preview');
+}
+
+function confirmOrder() {
+    const comment = document.getElementById('comment').value.trim();
+    const orderNumber = 'PRE-' + String(1000 + Math.floor(Math.random()*9000));
+    
+    // Сохраняем заказ
+    const newOrder = {
+        id: orderNumber,
+        date: new Date().toLocaleString('ru-RU'),
+        status: 'Новый',
+        items: [...cart],
+        comment: comment || '—'
+    };
+    orders.unshift(newOrder);
+    localStorage.setItem('armorOrders', JSON.stringify(orders));
+    
+    // Отправляем в бот
+    if (tg) {
+        tg.sendData(JSON.stringify(newOrder));
+    }
+    
+    // Показываем успех
+    cart = [];
+    showMessage(`🎉 Предзаказ создан!<br><span class="order-number">${orderNumber}</span>`, 'success');
+    setTimeout(() => {
+        showPage('search');
+        renderOrders();
+    }, 2500);
+}
+
+function renderOrders() {
+    const container = document.getElementById('ordersList');
+    if (orders.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">Пока нет предзаказов</p>';
+        return;
+    }
+    let html = '';
+    orders.forEach(order => {
+        html += `<div style="border:1px solid #ddd;border-radius:10px;padding:15px;margin-bottom:15px;background:#f8f9ff;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <strong>${order.id}</strong>
+                <span style="color:#2e7d32;">${order.status}</span>
+            </div>
+            <small>${order.date}</small>
+            <table style="margin-top:10px;width:100%;font-size:13px;">
+                <tbody>
+                    ${order.items.map(item => `<tr><td>${item.name}</td><td style="text-align:right;">${item.qty} шт.</td></tr>`).join('')}
+                </tbody>
+            </table>
+            ${order.comment !== '—' ? `<p style="margin-top:8px;color:#666;font-size:13px;">Комментарий: ${order.comment}</p>` : ''}
+        </div>`;
+    });
+    container.innerHTML = html;
+}
 
 function showMessage(text, type) {
     const msg = document.getElementById('message');
-    msg.textContent = text;
+    msg.innerHTML = text;
     msg.className = `message ${type}`;
-    setTimeout(() => msg.className = 'message', 4000);
+    setTimeout(() => { msg.className = 'message'; }, 5000);
 }
 </script>
 </body>
 </html>'''
 
+# ===================== ROUTES =====================
 @app.route('/webapp', methods=['GET'])
 def webapp():
     return render_template_string(MINI_APP_HTML)
@@ -225,5 +318,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.8 STABLE — поиск и клики в Telegram исправлены")
+    print("\n🛡️ ARMOR HAND Cloud v6.0 STABLE + новые функции (предпросмотр, номер, Мои заказы)")
     app.run(host='0.0.0.0', port=port, debug=False)
