@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.1
-Рабочая версия v5.0 + История заказов + Excel + PDF
+🛡️ ARMOR HAND - Облачный Mini App v5.2
+ИСПРАВЛЕНА инициализация Telegram в Mini App контексте
 """
 
 import os
@@ -27,7 +27,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
         
-        #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+        #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
         .error-box { background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center; }
         .error-box h2 { color: #c62828; font-size: 24px; margin-bottom: 20px; }
         
@@ -66,7 +66,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
-        .btn-danger { background: #f44336; }
         
         textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         
@@ -75,6 +74,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .order-id { font-weight: 600; color: #1e3c72; }
         .order-date { font-size: 12px; color: #666; margin-top: 4px; }
         .order-items { font-size: 12px; color: #666; margin-top: 6px; }
+        
+        h3 { margin: 15px 0 10px 0; }
     </style>
 </head>
 <body>
@@ -171,27 +172,29 @@ let orders = JSON.parse(localStorage.getItem('armorOrders') || '[]');
 let currentOrder = null;
 
 function initApp() {
-    const check = () => {
-        if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 5) {
+    try {
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
             tg = Telegram.WebApp;
             tg.ready();
             tg.expand();
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            return true;
-        }
-        return false;
-    };
-    if (check()) return;
-    setTimeout(check, 300);
-    setTimeout(() => {
-        if (!tg) {
+            console.log('✅ Telegram WebApp инициализирован');
+        } else {
             document.getElementById('error-screen').style.display = 'flex';
             document.querySelector('.app').style.display = 'none';
+            console.log('❌ Telegram WebApp не доступен');
         }
-    }, 1500);
+    } catch (e) {
+        console.error('Ошибка инициализации:', e);
+        document.getElementById('error-screen').style.display = 'flex';
+        document.querySelector('.app').style.display = 'none';
+    }
 }
-window.addEventListener('load', initApp);
+
+document.addEventListener('DOMContentLoaded', initApp);
+setTimeout(initApp, 100);
+setTimeout(initApp, 500);
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -451,5 +454,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.1 — рабочая v5.0 + история заказов + Excel + PDF")
+    print("\n🛡️ ARMOR HAND Cloud v5.2 — исправлена инициализация Telegram")
     app.run(host='0.0.0.0', port=port, debug=False)
