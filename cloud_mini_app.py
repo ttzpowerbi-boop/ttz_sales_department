@@ -294,6 +294,7 @@ let tg = null;
 let cart = [];
 let lastOrderId = null;
 let currentDetailOrderId = null;
+let foundProducts = [];   // глобальный массив результатов поиска
 
 /* ════════════════════════════════════════════════════════
    INIT
@@ -375,11 +376,19 @@ async function searchProducts(){
     const data = await res.json();
     const list = document.getElementById('productsList');
     if(data.products && data.products.length>0){
-      list.innerHTML = data.products.map(p=>
-        `<div class="product" onclick="addToCart(${JSON.stringify(p.name)}, ${JSON.stringify(p.unit||'шт')})">
+      foundProducts = data.products;
+      list.innerHTML = data.products.map((p,idx)=>
+        `<div class="product" data-idx="${idx}">
            <div class="product-name">${p.name}</div>
          </div>`
       ).join('');
+      list.onclick = function(e){
+        const card = e.target.closest('.product');
+        if(!card) return;
+        const i = parseInt(card.dataset.idx);
+        const p = foundProducts[i];
+        if(p) addToCart(p.name, p.unit||'шт');
+      };
       list.style.display='flex';
       showMessage(`✅ Найдено ${data.products.length} товаров`,'success');
     } else {
