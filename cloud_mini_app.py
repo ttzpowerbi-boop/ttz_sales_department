@@ -1,6 +1,6 @@
 """
 🛡️ ARMOR HAND - Облачный Mini App v6.3 FINAL
-Рабочий v6.2 + детальная страница заказа + Excel + PDF (формат Акта)
+Твой рабочий v5.0 + детальная страница + Excel + PDF (формат Акта)
 """
 
 import os
@@ -20,7 +20,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ARMOR HAND</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async></script>
     <style>
@@ -41,9 +41,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .products { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 280px); overflow-y: auto; margin-top: 15px; }
         .product { padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; }
         .product:hover { border-color: #2a5298; background: #f8f9ff; }
-        .product-name { font-weight: 600; color: #1e3c72; word-break: break-word; line-height: 1.4; }
+        .product-name { font-weight: 600; color: #1e3c72; word-break: break-word; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; vertical-align: top; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; }
         th { background: #e3f2fd; font-weight: 600; }
         .action-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 17px; width: 42px; }
         .edit-btn { background: #2196f3; color: white; }
@@ -89,20 +89,29 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             <div id="cartPage" class="page">
                 <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
                 <h3>🛒 Корзина</h3>
-                <table id="cartTable"><thead><tr><th>Товар</th><th>Кол-во</th><th>Ред.</th><th>Удал.</th></tr></thead><tbody id="cartBody"></tbody></table>
+                <table id="cartTable">
+                    <thead><tr><th>Товар</th><th>Кол-во</th><th>Ред.</th><th>Удал.</th></tr></thead>
+                    <tbody id="cartBody"></tbody>
+                </table>
                 <div class="buttons">
                     <button class="btn btn-secondary" onclick="clearCart()">Очистить</button>
                     <button class="btn btn-primary" onclick="showPreview()">Предварительный просмотр</button>
                 </div>
             </div>
             
-            <!-- Предпросмотр -->
+            <!-- Предварительный просмотр -->
             <div id="previewPage" class="page">
                 <button class="btn btn-secondary" onclick="showPage('cart')" style="margin-bottom:15px;">← Назад в корзину</button>
                 <h3>📄 Предварительный просмотр заказа</h3>
                 <div class="summary-table">
-                    <table style="width:100%;"><thead><tr><th>Товар</th><th>Кол-во</th></tr></thead><tbody id="previewTable"></tbody></table>
-                    <div class="summary-row" style="margin-top:15px;"><span>Итого позиций:</span><span id="previewCount">0</span></div>
+                    <table style="width:100%;">
+                        <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
+                        <tbody id="previewTable"></tbody>
+                    </table>
+                    <div class="summary-row" style="margin-top:15px;">
+                        <span>Итого позиций:</span>
+                        <span id="previewCount">0</span>
+                    </div>
                 </div>
                 <div style="margin-top:20px;">
                     <h4>Комментарий к заказу</h4>
@@ -160,7 +169,7 @@ window.onload = initApp;
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(page + 'Page').classList.add('active');
-    const titles = {'search':'Форма предзаказа','cart':'Ваша корзина','preview':'Предварительный просмотр','orders':'Мои предзаказы','detail':'Детали заказа'};
+    const titles = { 'search': 'Форма предзаказа', 'cart': 'Ваша корзина', 'preview': 'Предварительный просмотр', 'orders': 'Мои предзаказы', 'detail': 'Детали заказа' };
     document.getElementById('headerTitle').textContent = titles[page] || 'ARMOR HAND';
     if (page === 'orders') renderOrders();
 }
@@ -233,7 +242,9 @@ function clearCart() {
 function showPreview() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
     let html = '';
-    cart.forEach(item => html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`);
+    cart.forEach(item => {
+        html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`;
+    });
     document.getElementById('previewTable').innerHTML = html;
     document.getElementById('previewCount').textContent = cart.length;
     showPage('preview');
@@ -243,12 +254,22 @@ function confirmAndSend() {
     if (cart.length === 0) return;
     const comment = document.getElementById('orderComment').value.trim();
     const orderNumber = 'PRE-' + String(1000 + Math.floor(Math.random() * 9000));
-    const orderData = {id: orderNumber, date: new Date().toLocaleString('ru-RU'), status: 'Новый', items: cart, comment: comment || '—'};
+    const orderData = {
+        id: orderNumber,
+        date: new Date().toLocaleString('ru-RU'),
+        status: 'Новый',
+        items: cart,
+        comment: comment || '—'
+    };
     orders.unshift(orderData);
     localStorage.setItem('armorOrders', JSON.stringify(orders));
     if (tg && tg.sendData) tg.sendData(JSON.stringify(orderData));
-    showMessage(`🎉 Предзаказ создан!<br><span class="order-number">${orderNumber}</span>`, 'success');
-    setTimeout(() => { cart = []; updateCartDisplay(); showPage('search'); }, 2200);
+    showMessage(`🎉 Предзаказ создан!<br><span style="font-size:20px;color:#2a5298;">${orderNumber}</span>`, 'success');
+    setTimeout(() => {
+        cart = [];
+        updateCartDisplay();
+        showPage('search');
+    }, 2200);
 }
 
 function renderOrders() {
@@ -272,7 +293,9 @@ function showOrderDetail(index) {
     currentOrder = orders[index];
     let html = `<h3>${currentOrder.id}</h3><p><strong>Дата:</strong> ${currentOrder.date}</p><p><strong>Статус:</strong> <span style="color:#2e7d32;">${currentOrder.status}</span></p>`;
     html += `<table style="width:100%;margin-top:15px;"><thead><tr><th>Товар</th><th>Кол-во</th></tr></thead><tbody>`;
-    currentOrder.items.forEach(item => html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`);
+    currentOrder.items.forEach(item => {
+        html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`;
+    });
     html += `</tbody></table>`;
     if (currentOrder.comment !== '—') html += `<p style="margin-top:15px;"><strong>Комментарий:</strong> ${currentOrder.comment}</p>`;
     document.getElementById('detailContent').innerHTML = html;
@@ -281,11 +304,11 @@ function showOrderDetail(index) {
 
 function downloadExcel() {
     if (!currentOrder) return;
-    let csv = "№ п/п;Наименование;Ед. изм;Кол-во\n";
+    let csv = "№;Наименование;Ед.изм;Кол-во\n";
     currentOrder.items.forEach((item, i) => {
         csv += `${i+1};${item.name};${item.unit};${item.qty}\n`;
     });
-    const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${currentOrder.id}.csv`;
@@ -297,14 +320,13 @@ function printToPDF() {
     if (!currentOrder) return;
     const win = window.open('', '_blank');
     win.document.write(`
-        <div style="padding:30px; font-family:Arial; max-width:800px; margin:auto;">
+        <div style="padding:30px;font-family:Arial;max-width:800px;margin:auto;">
             <h2 style="text-align:center;">АКТ приема-передачи товара</h2>
             <p style="text-align:center;">№ ${currentOrder.id} от ${currentOrder.date}</p>
-            <table border="1" style="width:100%; border-collapse:collapse; margin-top:30px;">
-                <tr><th>№ п/п</th><th>Наименование</th><th>Ед. изм</th><th>Кол-во</th></tr>
-                ${currentOrder.items.map((item,i) => `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.unit}</td><td>${item.qty}</td></tr>`).join('')}
+            <table border="1" style="width:100%;border-collapse:collapse;margin-top:30px;">
+                <tr><th>Товар</th><th>Кол-во</th></tr>
+                ${currentOrder.items.map(item => `<tr><td>${item.name}</td><td style="text-align:center">${item.qty} ${item.unit}</td></tr>`).join('')}
             </table>
-            <p style="margin-top:40px;">Комментарий: ${currentOrder.comment}</p>
         </div>
     `);
     win.document.close();
@@ -333,7 +355,12 @@ def search():
         query = data.get('query', '').strip()
         if not query:
             return jsonify({"error": "Пустой запрос", "products": []})
-        response = session.post('https://criteria-waviness-entangled.ngrok-free.dev/api/search', json={'query': query}, timeout=15, verify=False)
+        response = session.post(
+            'https://criteria-waviness-entangled.ngrok-free.dev/api/search',
+            json={'query': query},
+            timeout=15,
+            verify=False
+        )
         return jsonify(response.json())
     except Exception as e:
         print(f"Proxy error: {e}")
