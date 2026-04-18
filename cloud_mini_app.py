@@ -1,6 +1,6 @@
 """
 🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.9)
-Максимально строгая защита — работает ТОЛЬКО внутри Telegram
+Защита: работает только внутри Telegram, в браузере — блокировка
 """
 
 import os
@@ -17,9 +17,11 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <title>ARMOR HAND - Форма предзаказа</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async></script>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
             background: #f0f2f5; 
+            color: #333; 
             margin: 0; 
             padding: 0;
             height: 100vh;
@@ -33,6 +35,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             height: 100vh;
             text-align: center;
             padding: 30px;
+            background: #f0f2f5;
         }
         .container { 
             max-width: 600px; 
@@ -62,14 +65,20 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .search-container { display: flex; gap: 10px; }
         .search-input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         .search-btn { padding: 12px 20px; background: #2a5298; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .search-btn:disabled { background: #ccc; cursor: not-allowed; }
         
         .products-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; margin-top: 15px; }
         .product-item { padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; }
+        .product-item:hover { border-color: #2a5298; background: #f0f2f5; }
         .product-name { font-weight: 600; color: #1e3c72; font-size: 13px; }
         .product-unit { font-size: 12px; color: #666; margin-top: 5px; }
         
         .product-detail { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .product-detail h2 { color: #1e3c72; font-size: 18px; margin-bottom: 15px; word-break: break-word; }
+        .product-detail-info { background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #2a5298; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+        .info-label { font-weight: 600; color: #666; }
+        .info-value { color: #333; font-weight: 600; }
         
         .quantity-section { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .quantity-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
@@ -91,6 +100,10 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .cart-summary { background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px; }
         .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; font-weight: 600; }
         
+        .success-message { background: #c8e6c9; color: #2e7d32; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: 600; }
+        
+        textarea { font-family: inherit; width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 80px; }
+        
         .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
         .table th { background: #e3f2fd; font-weight: 600; color: #1e3c72; }
@@ -104,7 +117,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <body>
 
     <!-- Блокировка при открытии в браузере -->
-    <div id="blockedScreen" style="display: flex; height: 100vh; background: #f0f2f5; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px;">
+    <div id="blockedScreen" style="display: none; height: 100vh; background: #f0f2f5; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px;">
         <h2 style="color: #c62828; margin-bottom: 20px;">⚠️ Доступ запрещён</h2>
         <p style="font-size: 17px; max-width: 420px; margin-bottom: 30px;">
             Это приложение работает <strong>только внутри Telegram</strong>.<br><br>
@@ -116,7 +129,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         </button>
     </div>
 
-    <!-- Основное приложение (скрыто по умолчанию) -->
+    <!-- Основное приложение -->
     <div id="mainApp" style="display: none;">
         <div class="container">
             <div class="header">
@@ -133,6 +146,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             <div class="content">
                 <div id="message" class="message"></div>
                 
+                <!-- Поиск -->
                 <div id="searchPage" class="page active">
                     <div class="section">
                         <h3>📦 Поиск товаров</h3>
@@ -143,30 +157,107 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                         <div id="productsList" class="products-list" style="display: none;"></div>
                     </div>
                 </div>
+                
+                <!-- Детальный просмотр -->
+                <div id="detailPage" class="page">
+                    <div class="buttons" style="margin-top: 0;">
+                        <button class="btn-back" onclick="goBackFromDetail()">← Назад</button>
+                    </div>
+                    <div class="product-detail">
+                        <h2 id="detailProductName"></h2>
+                        <div class="product-detail-info">
+                            <div class="info-row">
+                                <span class="info-label">Единица:</span>
+                                <span class="info-value" id="detailProductUnit">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quantity-section">
+                        <div class="quantity-label" id="quantityLabel">Укажите количество:</div>
+                        <div class="quantity-controls">
+                            <button class="qty-btn" onclick="decreaseQty()">−</button>
+                            <input type="number" id="qtyInput" class="qty-input" value="1" min="1">
+                            <button class="qty-btn" onclick="increaseQty()">+</button>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button class="btn-secondary" onclick="goBackFromDetail()">Отмена</button>
+                            <button class="btn-primary" onclick="addToOrder()">Добавить в корзину</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Корзина -->
+                <div id="cartPage" class="page">
+                    <div class="buttons" style="margin-top: 0; margin-bottom: 20px;">
+                        <button class="btn-back" onclick="goBackToSearch()">← Продолжить покупки</button>
+                    </div>
+                    <h3 style="margin-bottom: 20px;">🛒 Ваша корзина</h3>
+                    <div class="cart-summary">
+                        <div class="summary-row"><span>Всего единиц:</span><span id="cartTotalItems">0</span></div>
+                        <div class="summary-row"><span>Позиций:</span><span id="cartTotalPositions">0</span></div>
+                    </div>
+                    <div class="section" style="border-bottom: none;">
+                        <h3>📋 Выбранные товары</h3>
+                        <div id="cartItems"></div>
+                    </div>
+                    <div class="buttons">
+                        <button class="btn-secondary" onclick="clearOrder()">Очистить</button>
+                        <button class="btn-primary" id="submitBtn" onclick="goToCheckout()" disabled>Оформить заказ</button>
+                    </div>
+                </div>
 
-                <!-- Здесь должны быть остальные страницы (detailPage, cartPage и т.д.) -->
-                <!-- Если они отсутствуют — приложение выглядит пустым -->
+                <!-- Оформление -->
+                <div id="checkoutPage" class="page">
+                    <div class="buttons" style="margin-top: 0; margin-bottom: 20px;">
+                        <button class="btn-back" onclick="goBackToCart()">← Назад</button>
+                    </div>
+                    <h3 style="margin-bottom: 20px;">📝 Счет-фактура</h3>
+                    <table class="table">
+                        <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
+                        <tbody id="checkoutTable"></tbody>
+                    </table>
+                    <div class="section">
+                        <h3>📝 Комментарий</h3>
+                        <textarea id="orderComment" placeholder="Добавьте комментарий..."></textarea>
+                    </div>
+                    <div class="buttons">
+                        <button class="btn-secondary" onclick="goBackToCart()">Отмена</button>
+                        <button class="btn-primary" onclick="submitOrder()">Отправить заказ</button>
+                    </div>
+                </div>
 
+                <!-- Итог -->
+                <div id="summaryPage" class="page">
+                    <div class="success-message">✅ Заказ отправлен!</div>
+                    <h3 style="margin-bottom: 20px;">📊 Итого по заказу</h3>
+                    <table class="table">
+                        <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
+                        <tbody id="summaryTable"></tbody>
+                    </table>
+                    <div class="cart-summary">
+                        <div class="summary-row"><span>Всего позиций:</span><span id="summaryPositions">0</span></div>
+                    </div>
+                    <div class="buttons">
+                        <button class="btn-primary" onclick="newOrder()">Новый заказ</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // === САМАЯ СТРОГАЯ ЗАЩИТА ===
-        function blockIfNotTelegram() {
+        // === СТРОГАЯ ЗАЩИТА ===
+        function checkTelegramOnly() {
             if (!window.Telegram || !window.Telegram.WebApp) {
-                // Показываем блокировку
                 document.getElementById('blockedScreen').style.display = 'flex';
                 return false;
             }
-            // Показываем приложение
             document.getElementById('mainApp').style.display = 'block';
             return true;
         }
 
-        // Запуск сразу при загрузке страницы
         window.onload = function() {
-            if (!blockIfNotTelegram()) return;
+            if (!checkTelegramOnly()) return;
 
             try {
                 tg = window.Telegram.WebApp;
@@ -175,10 +266,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             } catch(e) {}
 
             updateCartBadge();
-            console.log('✅ ARMOR HAND v2.9 запущен внутри Telegram');
+            console.log('✅ ARMOR HAND v2.9 успешно запущен внутри Telegram');
         };
 
-        // ===================== ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ =====================
         let tg = null;
         let allProducts = [];
         let selectedProduct = null;
@@ -186,6 +276,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         let editingIndex = null;
         let currentPage = 'searchPage';
 
+        // ===================== ОСНОВНАЯ ЛОГИКА =====================
         function showPage(pageName) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(pageName).classList.add('active');
@@ -196,6 +287,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 document.getElementById('backBtnHeader').style.display = 'none';
             } else {
                 document.getElementById('backBtnHeader').style.display = 'block';
+                if (pageName === 'cartPage') updateCartDisplay();
+                if (pageName === 'checkoutPage') updateCheckoutDisplay();
             }
         }
 
@@ -462,5 +555,5 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v2.9 запущен — максимальная защита")
+    print("\n🛡️ ARMOR HAND Cloud v2.9 запущен — строгая защита")
     app.run(host='0.0.0.0', port=port, debug=False)
