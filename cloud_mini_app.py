@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v4.3
-Исправлен поиск + кнопки редактирования/удаления в корзине
+🛡️ ARMOR HAND - Облачный Mini App v4.4 FINAL
+Исправлено: корзина работает нормально, отправка только по кнопке
 """
 
 import os
@@ -51,7 +51,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         th { background: #e3f2fd; }
-        .action-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
         .edit-btn { background: #2196f3; color: white; }
         .remove-btn { background: #f44336; color: white; }
         
@@ -60,9 +60,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .message.error { background: #ffcdd2; color: #c62828; display: block; }
         
         .buttons { display: flex; gap: 10px; margin-top: 20px; }
-        .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        .btn-primary { background: #4caf50; color: white; }
-        .btn-secondary { background: #757575; color: white; }
+        .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
+        .btn-primary { background: #4caf50; }
+        .btn-secondary { background: #757575; }
     </style>
 </head>
 <body>
@@ -122,16 +122,14 @@ function initApp() {
             tg.expand();
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            console.log('✅ Мини-приложение запущено внутри Telegram');
+            console.log('✅ Запущено внутри Telegram');
             return true;
         }
         return false;
     };
-    
     if (check()) return;
-    setTimeout(check, 400);
-    setTimeout(check, 1000);
-    setTimeout(check, 1800);
+    setTimeout(check, 500);
+    setTimeout(check, 1200);
 }
 window.onload = initApp;
 
@@ -143,23 +141,21 @@ function showPage(page) {
 
 async function searchProducts() {
     const query = document.getElementById('searchInput').value.trim();
-    if (!query) return showMessage('Введите запрос для поиска', 'error');
-    
-    showMessage('Ищу товары...', 'success');
+    if (!query) return showMessage('Введите запрос', 'error');
     
     try {
         const res = await fetch('/api/search', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({query: query})
+            body: JSON.stringify({query})
         });
         const data = await res.json();
         
         const list = document.getElementById('productsList');
         if (data.products && data.products.length > 0) {
             let html = '';
-            data.products.forEach((p, i) => {
-                html += `<div class="product" onclick="addToCartFromSearch('${p.name}', '${p.unit || "шт"}')">
+            data.products.forEach(p => {
+                html += `<div class="product" onclick="addToCart('${p.name}', '${p.unit || "шт"}')">
                     <div class="product-name">${p.name}</div>
                 </div>`;
             });
@@ -171,12 +167,11 @@ async function searchProducts() {
             showMessage('❌ Товары не найдены', 'error');
         }
     } catch (e) {
-        showMessage('❌ Ошибка подключения к серверу', 'error');
-        console.error(e);
+        showMessage('❌ Ошибка соединения', 'error');
     }
 }
 
-function addToCartFromSearch(name, unit) {
+function addToCart(name, unit) {
     const existing = cart.find(item => item.name === name);
     if (existing) {
         existing.qty += 1;
@@ -194,24 +189,24 @@ function updateCartDisplay() {
         html += `<tr>
             <td>${item.name}</td>
             <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editCartItem(${index})">✎</button></td>
-            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeCartItem(${index})">✕</button></td>
+            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${index})">✎</button></td>
+            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td>
         </tr>`;
     });
     document.getElementById('cartBody').innerHTML = html;
 }
 
-function editCartItem(index) {
-    const newQty = prompt(`Новое количество для "${cart[index].name}":`, cart[index].qty);
-    if (newQty !== null && !isNaN(newQty) && newQty > 0) {
+function editItem(index) {
+    const newQty = prompt(`Новое количество для товара:\n${cart[index].name}`, cart[index].qty);
+    if (newQty !== null && !isNaN(newQty) && parseInt(newQty) > 0) {
         cart[index].qty = parseInt(newQty);
         updateCartDisplay();
-        showMessage('✅ Количество изменено', 'success');
+        showMessage('✅ Количество обновлено', 'success');
     }
 }
 
-function removeCartItem(index) {
-    if (confirm('Удалить этот товар из корзины?')) {
+function removeItem(index) {
+    if (confirm('Удалить этот товар?')) {
         cart.splice(index, 1);
         updateCartDisplay();
         showMessage('🗑️ Товар удалён', 'success');
@@ -229,15 +224,15 @@ function submitOrder() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
     
     if (tg && tg.sendData) {
-        tg.sendData(JSON.stringify({items: cart, timestamp: new Date().toLocaleString('ru-RU')}));
+        tg.sendData(JSON.stringify({items: cart}));
         showMessage('✅ Заказ отправлен в бота!', 'success');
         setTimeout(() => {
             cart = [];
             updateCartDisplay();
             showPage('search');
-        }, 1200);
+        }, 1500);
     } else {
-        showMessage('❌ Ошибка отправки (tg.sendData недоступен)', 'error');
+        showMessage('❌ Ошибка отправки', 'error');
     }
 }
 
@@ -245,7 +240,7 @@ function showMessage(text, type) {
     const msg = document.getElementById('message');
     msg.textContent = text;
     msg.className = `message ${type}`;
-    setTimeout(() => { msg.className = 'message'; }, 4000);
+    setTimeout(() => msg.className = 'message', 4000);
 }
 </script>
 </body>
@@ -272,14 +267,10 @@ def search():
         )
         return jsonify(response.json())
     except Exception as e:
-        print(f"Search proxy error: {e}")
+        print(f"Proxy error: {e}")
         return jsonify({"error": "Локальный сервер недоступен", "products": []})
-
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify({"status": "ok", "version": "4.3"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND v4.3 — поиск и корзина исправлены")
+    print("\n🛡️ ARMOR HAND Cloud v4.4 — корзина исправлена")
     app.run(host='0.0.0.0', port=port, debug=False)
