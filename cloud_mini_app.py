@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v4.4 FINAL
-Исправлено: корзина работает нормально, отправка только по кнопке
+🛡️ ARMOR HAND - Облачный Mini App v5.0
+Добавлена страница предварительного просмотра (ЭСФ) + история заказов
 """
 
 import os
@@ -50,10 +50,13 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background: #e3f2fd; }
+        th { background: #e3f2fd; font-weight: 600; }
         .action-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
         .edit-btn { background: #2196f3; color: white; }
         .remove-btn { background: #f44336; color: white; }
+        
+        .summary-table { background: #f9f9f9; padding: 15px; border-radius: 8px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 600; }
         
         .message { padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; }
         .message.success { background: #c8e6c9; color: #2e7d32; display: block; }
@@ -63,6 +66,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
+        .btn-danger { background: #f44336; }
+        
+        textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -103,7 +109,31 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </table>
                 <div class="buttons">
                     <button class="btn btn-secondary" onclick="clearCart()">Очистить</button>
-                    <button class="btn btn-primary" onclick="submitOrder()">Отправить заказ</button>
+                    <button class="btn btn-primary" onclick="showPreview()">Предварительный просмотр</button>
+                </div>
+            </div>
+            
+            <!-- Предварительный просмотр (ЭСФ) -->
+            <div id="previewPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('cart')" style="margin-bottom:15px;">← Назад в корзину</button>
+                <h3>📄 Предварительный просмотр заказа</h3>
+                <div class="summary-table">
+                    <table style="width:100%;">
+                        <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
+                        <tbody id="previewTable"></tbody>
+                    </table>
+                    <div class="summary-row" style="margin-top:15px;">
+                        <span>Итого позиций:</span>
+                        <span id="previewCount">0</span>
+                    </div>
+                </div>
+                <div style="margin-top:20px;">
+                    <h4>Комментарий к заказу</h4>
+                    <textarea id="orderComment" placeholder="Добавьте комментарий (необязательно)..."></textarea>
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-secondary" onclick="showPage('cart')">Отмена</button>
+                    <button class="btn btn-primary" onclick="confirmAndSend()">Подтвердить и отправить заказ</button>
                 </div>
             </div>
         </div>
@@ -122,21 +152,21 @@ function initApp() {
             tg.expand();
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            console.log('✅ Запущено внутри Telegram');
             return true;
         }
         return false;
     };
     if (check()) return;
-    setTimeout(check, 500);
-    setTimeout(check, 1200);
+    setTimeout(check, 600);
 }
 window.onload = initApp;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(page + 'Page').classList.add('active');
-    document.getElementById('headerTitle').textContent = page === 'search' ? 'Форма предзаказа' : 'Ваша корзина';
+    document.getElementById('headerTitle').textContent = 
+        page === 'search' ? 'Форма предзаказа' : 
+        page === 'cart' ? 'Ваша корзина' : 'Предварительный просмотр';
 }
 
 async function searchProducts() {
@@ -155,7 +185,7 @@ async function searchProducts() {
         if (data.products && data.products.length > 0) {
             let html = '';
             data.products.forEach(p => {
-                html += `<div class="product" onclick="addToCart('${p.name}', '${p.unit || "шт"}')">
+                html += `<div class="product" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', '${p.unit || "шт"}')">
                     <div class="product-name">${p.name}</div>
                 </div>`;
             });
@@ -197,7 +227,7 @@ function updateCartDisplay() {
 }
 
 function editItem(index) {
-    const newQty = prompt(`Новое количество для товара:\n${cart[index].name}`, cart[index].qty);
+    const newQty = prompt(`Новое количество для:\n${cart[index].name}`, cart[index].qty);
     if (newQty !== null && !isNaN(newQty) && parseInt(newQty) > 0) {
         cart[index].qty = parseInt(newQty);
         updateCartDisplay();
@@ -206,7 +236,7 @@ function editItem(index) {
 }
 
 function removeItem(index) {
-    if (confirm('Удалить этот товар?')) {
+    if (confirm('Удалить товар из корзины?')) {
         cart.splice(index, 1);
         updateCartDisplay();
         showMessage('🗑️ Товар удалён', 'success');
@@ -220,17 +250,39 @@ function clearCart() {
     }
 }
 
-function submitOrder() {
+function showPreview() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
     
+    let html = '';
+    cart.forEach(item => {
+        html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`;
+    });
+    document.getElementById('previewTable').innerHTML = html;
+    document.getElementById('previewCount').textContent = cart.length;
+    
+    showPage('preview');
+}
+
+function confirmAndSend() {
+    if (cart.length === 0) return;
+    
+    const comment = document.getElementById('orderComment').value.trim();
+    
     if (tg && tg.sendData) {
-        tg.sendData(JSON.stringify({items: cart}));
-        showMessage('✅ Заказ отправлен в бота!', 'success');
+        const orderData = {
+            items: cart,
+            comment: comment,
+            timestamp: new Date().toLocaleString('ru-RU')
+        };
+        tg.sendData(JSON.stringify(orderData));
+        
+        showMessage('✅ Заказ успешно отправлен в бота!', 'success');
+        
         setTimeout(() => {
             cart = [];
             updateCartDisplay();
             showPage('search');
-        }, 1500);
+        }, 1800);
     } else {
         showMessage('❌ Ошибка отправки', 'error');
     }
@@ -272,5 +324,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v4.4 — корзина исправлена")
+    print("\n🛡️ ARMOR HAND Cloud v5.0 — предварительный просмотр добавлен")
     app.run(host='0.0.0.0', port=port, debug=False)
