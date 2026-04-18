@@ -48,12 +48,24 @@ MINI_APP_HTML = r'''<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ARMOR HAND</title>
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333;min-height:100vh;}
+html{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333;min-height:100%;min-height:100dvh;overflow-x:hidden;}
+/* автомасштаб текста на мобильных */
+@media(max-width:400px){
+  body{font-size:13px;}
+  .header h1{font-size:18px;}
+  .nav-btn{font-size:11px;padding:10px 2px;}
+  .search-input{font-size:13px;}
+  .product-name{font-size:12px;}
+  .order-number-banner .num{font-size:16px;word-break:break-all;}
+  .btn{font-size:13px;padding:11px 8px;}
+  .order-card-num{font-size:13px;}
+}
 
 /* ── error ── */
 #error-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#667eea,#764ba2);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;}
@@ -62,7 +74,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* ── layout ── */
 .app{display:none;}
-.container{max-width:600px;margin:0 auto;background:#fff;min-height:100vh;}
+.container{max-width:600px;margin:0 auto;background:#fff;min-height:100%;min-height:100dvh;width:100%;}
 .header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:18px 20px;text-align:center;position:sticky;top:0;z-index:10;}
 .header h1{font-size:22px;margin-bottom:3px;}
 .header p{font-size:13px;opacity:.85;}
@@ -81,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .search-box{display:flex;gap:8px;}
 .search-input{flex:1;padding:11px 12px;border:2px solid #ddd;border-radius:8px;font-size:14px;}
 .search-btn{padding:11px 18px;background:#2a5298;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;}
-.products{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;margin-top:12px;}
+.products{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 .product{padding:12px;border:2px solid #e0e0e0;border-radius:8px;cursor:pointer;transition:.15s;}
 .product:hover{border-color:#2a5298;background:#f0f4ff;}
 .product-name{font-weight:600;color:#1e3c72;font-size:13px;}
@@ -112,14 +124,13 @@ th{background:#e3f2fd;font-weight:600;}
 
 /* ── order number banner ── */
 .order-number-banner{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:14px 18px;border-radius:10px;margin-bottom:14px;text-align:center;}
-.order-number-banner .num{font-size:20px;font-weight:700;letter-spacing:1px;}
+.order-number-banner .num{font-size:20px;font-weight:700;letter-spacing:1px;word-break:break-all;}
 .order-number-banner .label{font-size:12px;opacity:.8;margin-top:3px;}
 
 /* ── orders list ── */
-.orders-filter{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-.orders-filter input[type=date]{padding:8px 10px;border:2px solid #ddd;border-radius:8px;font-size:13px;flex:1;min-width:130px;}
+.orders-filter{display:flex;gap:6px;margin-bottom:14px;align-items:center;flex-wrap:wrap;}
+.orders-filter input[type=date]{padding:8px 10px;border:2px solid #ddd;border-radius:8px;font-size:13px;flex:1;min-width:110px;}
 .orders-filter label{font-size:12px;color:#555;white-space:nowrap;}
-.filter-row{display:flex;gap:8px;align-items:center;flex:1;}
 .order-card{border:2px solid #e0e0e0;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:.15s;}
 .order-card:hover{border-color:#2a5298;background:#f0f4ff;}
 .order-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
@@ -231,13 +242,10 @@ textarea{width:100%;height:70px;padding:10px;border:2px solid #ddd;border-radius
       <!-- ══════════════ PAGE: ORDERS LIST ══════════════ -->
       <div id="ordersPage" class="page">
         <div class="orders-filter">
-          <div class="filter-row">
-            <label>С:</label>
-            <input type="date" id="filterFrom">
-            <label>По:</label>
-            <input type="date" id="filterTo">
-          </div>
-          <button class="btn btn-blue" style="flex:0 0 auto;padding:8px 14px;font-size:13px;" onclick="renderOrdersList()">Фильтр</button>
+          <label>С:</label>
+          <input type="date" id="filterFrom" onchange="renderOrdersList()">
+          <label>По:</label>
+          <input type="date" id="filterTo" onchange="renderOrdersList()">
         </div>
         <div id="ordersList"></div>
       </div>
@@ -625,11 +633,13 @@ def download_order_excel(order_id):
     ws = wb.active
     ws.title = "Акт"
 
-    # ── стили ──
-    def tn(s='thin'): return Side(style=s)
-    def no():         return Side(style=None)
+    # ── базовые стили ──
+    def tn(): return Side(style='thin')
+    def no(): return Side(style=None)
     def ab(): return Border(left=tn(), right=tn(), top=tn(), bottom=tn())
-    def lno(): return Border(left=tn(), top=tn(), bottom=tn())
+    def border(l=True,r=True,t=True,b=True):
+        return Border(left=tn() if l else no(), right=tn() if r else no(),
+                      top=tn() if t else no(), bottom=tn() if b else no())
 
     f10b = Font(name='Times New Roman', size=10, bold=True)
     f9b  = Font(name='Times New Roman', size=9,  bold=True)
@@ -637,20 +647,45 @@ def download_order_excel(order_id):
     f8   = Font(name='Times New Roman', size=8)
     cen  = Alignment(horizontal='center', vertical='center', wrap_text=True)
     lft  = Alignment(horizontal='left',   vertical='center', wrap_text=True)
-    rgt  = Alignment(horizontal='right',  vertical='center')
+    rgt  = Alignment(horizontal='right',  vertical='center', wrap_text=False)
 
-    # ── ширины колонок (11 колонок, как в оригинале) ──
-    widths = [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 11.5, 11.3, 14.5, 10.5, 17.3]
+    # ── ширины колонок (11 колонок точно как в оригинале) ──
+    # Col: A     B     C     D     E     F     G     H     I     J     K
+    widths=[5.5,  16.0, 5.0,  5.0,  5.0,  8.0,  8.5,  13.5, 15.5, 8.5,  17.5]
     for i, w in enumerate(widths):
         ws.column_dimensions[get_column_letter(i+1)].width = w
 
-    def M(r1,c1,r2,c2): ws.merge_cells(start_row=r1,start_column=c1,end_row=r2,end_column=c2)
-    def W(r,c,val,fnt=None,aln=None,brd=None):
+    def M(r1,c1,r2,c2):
+        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+
+    def W(r, c, val, fnt=None, aln=None, brd=None):
         cell = ws.cell(row=r, column=c, value=val)
         if fnt: cell.font = fnt
         if aln: cell.alignment = aln
         if brd: cell.border = brd
         return cell
+
+    def set_border_range(r1, c1, r2, c2, brd):
+        """Рисует границы на всех ячейках диапазона (включая скрытые под merge)"""
+        for row in range(r1, r2+1):
+            for col in range(c1, c2+1):
+                ws.cell(row=row, column=col).border = brd
+
+    def border_outline(r1, c1, r2, c2):
+        """Рисует внешнюю рамку прямоугольника"""
+        for row in range(r1, r2+1):
+            for col in range(c1, c2+1):
+                l = tn() if col == c1 else no()
+                r = tn() if col == c2 else no()
+                t = tn() if row == r1 else no()
+                b = tn() if row == r2 else no()
+                existing = ws.cell(row=row, column=col).border
+                ws.cell(row=row, column=col).border = Border(
+                    left=l if l.style else existing.left,
+                    right=r if r.style else existing.right,
+                    top=t if t.style else existing.top,
+                    bottom=b if b.style else existing.bottom
+                )
 
     # ── дата на русском ──
     months = ['января','февраля','марта','апреля','мая','июня',
@@ -658,22 +693,34 @@ def download_order_excel(order_id):
     now = datetime.now()
     date_ru = f"{now.day} {months[now.month-1]} {now.year} г."
 
-    # ── СТРОКИ 2-4: Приложение ──
+    # ────────────────────────────────────────────────
+    # СТРОКИ 2-4: Приложение (справа)
+    # ────────────────────────────────────────────────
     M(2,9,2,11); W(2,9,"Приложения №01", f9, rgt)
     M(3,9,3,11); W(3,9,"к договору комисси №712", f9, rgt)
     M(4,9,4,11); W(4,9,"7 февраля 2022 г.", f9, rgt)
 
-    # ── СТРОКА 6: Заголовок ──
+    # ────────────────────────────────────────────────
+    # СТРОКА 6: Заголовок АКТ
+    # ────────────────────────────────────────────────
     ws.row_dimensions[6].height = 22.5
-    M(6,1,6,11); W(6,1, f"АКТ  приема-передачи товара № {o['number']}", f10b, cen)
+    M(6,1,6,11)
+    W(6,1, f"АКТ  приема-передачи товара № {o['number']}", f10b, cen)
 
-    # ── СТРОКА 8: Город / дата ──
-    ws.row_dimensions[8].height = 22.5
+    # ────────────────────────────────────────────────
+    # СТРОКА 8: Город / дата
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[8].height = 16.875
     M(8,1,8,2);   W(8,1,"г. Ташкент", f9, lft)
     M(8,10,8,11); W(8,10, date_ru, f9, rgt)
 
-    # ── СТРОКИ 10-13: Вводный текст ──
-    ws.row_dimensions[10].height = 60
+    # ────────────────────────────────────────────────
+    # СТРОКИ 10-13: Вводный текст
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[10].height = 70
+    ws.row_dimensions[11].height = 15
+    ws.row_dimensions[12].height = 15
+    ws.row_dimensions[13].height = 15
     M(10,1,13,11)
     W(10,1,
       'СП ООО "Ташкентский трубный завод имени В.Л. Гальперина", в лице директора Суцепиной В. Д., '
@@ -682,52 +729,81 @@ def download_order_excel(order_id):
       ' именуемое в дальнейшем Комиссионер, с другой стороны, составили настоящий Акт о нижеследующем:',
       f9, lft)
 
-    # ── СТРОКИ 14-15: п.1 ──
+    # ────────────────────────────────────────────────
+    # СТРОКИ 14-15: п.1
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[14].height = 28
+    ws.row_dimensions[15].height = 15
     M(14,2,15,11)
     W(14,2,
       '1. В соответствии с п.3.2 Договора комиссии №712 от 7 февраля 2022 г.. Комитент передает, '
       'а Комиссионер принимает Товар следующего ассортимента и количества:',
       f9, lft)
 
-    # ── СТРОКИ 16-17: Шапка таблицы ──
-    ws.row_dimensions[16].height = 27.75
-    M(16,1,17,1);   W(16,1,"№ п/п", f9b, cen, ab())
-    M(16,2,17,5);   W(16,2,"Наименование", f9b, cen, ab())
-    M(16,6,17,6);   W(16,6,"Ед. изм", f9b, cen, ab())
-    M(16,7,17,7);   W(16,7,"Кол-во", f9b, cen, ab())
-    M(16,8,17,8);   W(16,8,"Цена без НДС, сум", f9b, cen, ab())
-    M(16,9,17,9);   W(16,9,"Цена, включая НДС, сум", f9b, cen, ab())
-    M(16,10,17,11); W(16,10,"Сумма, включая НДС сум", f9b, cen, ab())
+    # ────────────────────────────────────────────────
+    # СТРОКИ 16-17: Шапка таблицы — полные границы
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[16].height = 21
+    ws.row_dimensions[17].height = 21
 
-    # ── ТОВАРНЫЕ СТРОКИ ──
+    # Сначала заполняем все 11 ячеек в строках 16-17 границами
+    set_border_range(16, 1, 17, 11, ab())
+
+    # Потом мёрджим и пишем заголовки (merge скроет внутренние границы, внешние останутся)
+    M(16,1,17,1);    W(16,1,"№ п/п",                  f9b, cen, ab())
+    M(16,2,17,5);    W(16,2,"Наименование",            f9b, cen, ab())
+    M(16,6,17,6);    W(16,6,"Ед. изм",                 f9b, cen, ab())
+    M(16,7,17,7);    W(16,7,"Кол-во",                  f9b, cen, ab())
+    M(16,8,17,8);    W(16,8,"Цена без НДС, сум",       f9b, cen, ab())
+    M(16,9,17,9);    W(16,9,"Цена, включая НДС, сум",  f9b, cen, ab())
+    M(16,10,17,11);  W(16,10,"Сумма, включая НДС сум", f9b, cen, ab())
+
+    # ────────────────────────────────────────────────
+    # ТОВАРНЫЕ СТРОКИ
+    # ────────────────────────────────────────────────
     items = o['items']
     cur = 18
     for idx, item in enumerate(items, 1):
         r1, r2 = cur, cur+1
         ws.row_dimensions[r1].height = 16.875
         ws.row_dimensions[r2].height = 16.875
-        M(r1,1,r2,1);   W(r1,1, idx,                    f8, cen, ab())
-        M(r1,2,r2,5);   W(r1,2, item.get('name',''),    f8, lft, ab())
-        M(r1,6,r2,6);   W(r1,6, item.get('unit','шт'),  f8, cen, ab())
-        M(r1,7,r2,7);   W(r1,7, item.get('qty',1),      f8, cen, ab())
-        M(r1,8,r2,8);   W(r1,8, "",                      f8, cen, ab())
-        M(r1,9,r2,9);   W(r1,9, "",                      f8, cen, ab())
-        M(r1,10,r2,11); W(r1,10,"",                      f8, cen, ab())
+        # Сначала все ячейки строки получают границы
+        set_border_range(r1, 1, r2, 11, ab())
+        # Потом мёрджим и пишем значения
+        M(r1,1,r2,1);    W(r1,1, idx,                      f8, cen, ab())
+        M(r1,2,r2,5);    W(r1,2, item.get('name',''),      f8, lft, ab())
+        M(r1,6,r2,6);    W(r1,6, item.get('unit','шт'),    f8, cen, ab())
+        M(r1,7,r2,7);    W(r1,7, item.get('qty',1),        f8, cen, ab())
+        M(r1,8,r2,8);    W(r1,8,  "",                      f8, cen, ab())
+        M(r1,9,r2,9);    W(r1,9,  "",                      f8, cen, ab())
+        M(r1,10,r2,11);  W(r1,10, "",                      f8, cen, ab())
         cur += 2
 
-    # ── ИТОГО ──
+    # ────────────────────────────────────────────────
+    # ИТОГО — полная рамка по всем колонкам
+    # ────────────────────────────────────────────────
     ws.row_dimensions[cur].height = 19.125
-    M(cur,1,cur,5)
-    W(cur,1,"Итого:", f9b, rgt,
-      Border(left=tn(),top=tn(),bottom=tn(),right=no()))
-    M(cur,6,cur,9)
-    W(cur,6,"",f9, cen,
-      Border(left=no(),right=no(),top=tn(),bottom=tn()))
-    M(cur,10,cur,11)
-    W(cur,10,"", f9b, rgt, ab())
+    set_border_range(cur, 1, cur, 11, border(t=True, b=True, l=False, r=False))
+    # Левая граница col 1, правая граница col 11
+    ws.cell(cur, 1).border  = border(l=True,  r=False, t=True, b=True)
+    ws.cell(cur, 11).border = border(l=False, r=True,  t=True, b=True)
 
-    # ── п.2 ──
+    M(cur,1,cur,5)
+    W(cur,1,"Итого:", f9b, rgt, border(l=True, r=False, t=True, b=True))
+
+    # Граница между Кол-во и Суммой
+    ws.cell(cur, 7).border = border(l=True, r=True, t=True, b=True)   # Кол-во — правая граница
+
+    M(cur,10,cur,11)
+    W(cur,10,"", f9b, rgt, border(l=True, r=True, t=True, b=True))
+
+    # ────────────────────────────────────────────────
+    # п.2
+    # ────────────────────────────────────────────────
     r = cur + 1
+    ws.row_dimensions[r].height = 42
+    ws.row_dimensions[r+1].height = 15
+    ws.row_dimensions[r+2].height = 15
     M(r,2,r+2,11)
     W(r,2,
       '2.Принятый Комиссионером товар обладает качеством и ассортиментом, соответствующим требованиям Договора.'
@@ -735,7 +811,11 @@ def download_order_excel(order_id):
       f9, lft)
     r += 3
 
-    # ── п.3 ──
+    # ────────────────────────────────────────────────
+    # п.3
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[r].height = 35
+    ws.row_dimensions[r+1].height = 15
     M(r,2,r+1,11)
     W(r,2,
       '3.Настоящий Акт составлен в двух экземплярах, имеющих равную юридическую силу, '
@@ -743,24 +823,38 @@ def download_order_excel(order_id):
       f9, lft)
     r += 3
 
-    # ── ПОДПИСИ ──
+    # ────────────────────────────────────────────────
+    # ПОДПИСИ
+    # ────────────────────────────────────────────────
+    ws.row_dimensions[r].height = 22.5
     M(r,2,r,5);   W(r,2,"КОМИТЕНТ", f9b, cen)
     M(r,7,r,11);  W(r,7,"КОМИССИОНЕР", f9b, cen)
     r += 2
+    ws.row_dimensions[r].height = 22.5
     M(r,2,r,5);   W(r,2,"Директор       Суцепина В. Д.", f9, lft)
     M(r,7,r,11);  W(r,7,"Директор       Исаханов С.С", f9, lft)
     r += 2
+    ws.row_dimensions[r].height = 22.5
     M(r,2,r,5);   W(r,2,"Ст. спец. реализации", f9, lft)
     r += 2
+    ws.row_dimensions[r].height = 22.5
     M(r,2,r,5);   W(r,2,"Товар отпустил:", f9, lft)
     M(r,7,r,11);  W(r,7,"Товар принял: Yakubxodjayev U", f9, lft)
     r += 2
+    ws.row_dimensions[r].height = 22.5
     M(r,2,r,5);   W(r,2,"М.П.", f9, cen)
     M(r,7,r,11);  W(r,7,"М.П.", f9, cen)
 
-    # ── печать ──
+    # ── Параметры страницы: альбомная, А4, поля ──
     ws.page_setup.orientation = 'landscape'
-    ws.page_setup.paperSize = 9
+    ws.page_setup.paperSize   = 9   # A4
+    ws.page_setup.fitToPage   = True
+    ws.page_setup.fitToWidth  = 1
+    ws.page_setup.fitToHeight = 0
+    ws.page_margins.left   = 0.4
+    ws.page_margins.right  = 0.4
+    ws.page_margins.top    = 0.5
+    ws.page_margins.bottom = 0.5
 
     buf = io.BytesIO()
     wb.save(buf)
