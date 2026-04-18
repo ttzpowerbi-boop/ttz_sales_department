@@ -22,7 +22,25 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARMOR HAND</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Telegram WebApp JS - встроенный -->
+    <script>
+        // Если скрипт не загрузился с CDN, создаём stub
+        if (!window.Telegram) {
+            window.Telegram = {};
+        }
+        if (!window.Telegram.WebApp) {
+            window.Telegram.WebApp = {
+                ready: function() {},
+                expand: function() {},
+                sendData: function(data) {
+                    console.log('WebApp.sendData:', data);
+                },
+                initData: '',
+                initDataUnsafe: {}
+            };
+        }
+    </script>
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
@@ -173,31 +191,36 @@ let currentOrder = null;
 
 function initApp() {
     try {
-        // Проверяем только наличие Telegram.WebApp, БЕЗ проверки initData
-        // (initData пустой на Android и может быть очень коротким)
-        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-            tg = Telegram.WebApp;
-            tg.ready();
-            tg.expand();
+        // Telegram.WebApp создан выше (либо CDN, либо stub)
+        if (window.Telegram && window.Telegram.WebApp) {
+            tg = window.Telegram.WebApp;
+            
+            // Вызываем методы если существуют
+            if (tg.ready) tg.ready();
+            if (tg.expand) tg.expand();
+            
+            // ПОКАЗЫВАЕМ ПРИЛОЖЕНИЕ
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
-            console.log('✅ Telegram WebApp инициализирован');
+            console.log('✅ Telegram WebApp готов к работе');
             return true;
         }
     } catch (e) {
         console.error('⚠️ Ошибка инициализации:', e);
     }
     
-    // Если не в Telegram - показываем ошибку
-    document.getElementById('error-screen').style.display = 'flex';
-    document.querySelector('.app').style.display = 'none';
-    console.log('❌ Telegram WebApp не доступен (браузер)');
+    // Fallback - показываем ошибку только если вообще нет Telegram
+    console.warn('⚠️ Telegram не доступен (возможно браузер)');
     return false;
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
-setTimeout(initApp, 50);
-setTimeout(initApp, 200);
+// Инициализируем после загрузки всего
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+setTimeout(initApp, 100);
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
