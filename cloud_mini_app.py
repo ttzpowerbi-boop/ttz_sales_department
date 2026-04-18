@@ -22,7 +22,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARMOR HAND</title>
-    <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
@@ -183,9 +183,15 @@ function initApp() {
         return false;
     };
     if (check()) return;
-    setTimeout(check, 600);
+    setTimeout(check, 300);
+    setTimeout(() => {
+        if (!tg) {
+            document.getElementById('error-screen').style.display = 'flex';
+            document.querySelector('.app').style.display = 'none';
+        }
+    }, 1500);
 }
-window.onload = initApp;
+window.addEventListener('load', initApp);
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
