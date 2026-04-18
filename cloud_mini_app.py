@@ -173,6 +173,8 @@ let currentOrder = null;
 
 function initApp() {
     try {
+        // Проверяем только наличие Telegram.WebApp, БЕЗ проверки initData
+        // (initData пустой на Android и может быть очень коротким)
         if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
             tg = Telegram.WebApp;
             tg.ready();
@@ -180,21 +182,22 @@ function initApp() {
             document.querySelector('.app').style.display = 'block';
             document.getElementById('error-screen').style.display = 'none';
             console.log('✅ Telegram WebApp инициализирован');
-        } else {
-            document.getElementById('error-screen').style.display = 'flex';
-            document.querySelector('.app').style.display = 'none';
-            console.log('❌ Telegram WebApp не доступен');
+            return true;
         }
     } catch (e) {
-        console.error('Ошибка инициализации:', e);
-        document.getElementById('error-screen').style.display = 'flex';
-        document.querySelector('.app').style.display = 'none';
+        console.error('⚠️ Ошибка инициализации:', e);
     }
+    
+    // Если не в Telegram - показываем ошибку
+    document.getElementById('error-screen').style.display = 'flex';
+    document.querySelector('.app').style.display = 'none';
+    console.log('❌ Telegram WebApp не доступен (браузер)');
+    return false;
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
-setTimeout(initApp, 100);
-setTimeout(initApp, 500);
+setTimeout(initApp, 50);
+setTimeout(initApp, 200);
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
