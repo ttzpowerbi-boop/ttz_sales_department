@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.5)
-Исправлено: редактирование количества теперь заменяет, а не прибавляет
+🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.6)
+Защита от открытия вне Telegram + ссылка на ваш бот
 """
 
 import os
@@ -118,7 +118,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
             
-            <!-- Детальный просмотр (исправлено сообщение) -->
+            <!-- Детальный просмотр -->
             <div id="detailPage" class="page">
                 <div class="buttons" style="margin-top: 0;">
                     <button class="btn-back" onclick="goBackFromDetail()">← Назад</button>
@@ -166,7 +166,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Оформление и Итог (без изменений) -->
+            <!-- Оформление -->
             <div id="checkoutPage" class="page">
                 <div class="buttons" style="margin-top: 0; margin-bottom: 20px;">
                     <button class="btn-back" onclick="goBackToCart()">← Назад</button>
@@ -186,6 +186,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
 
+            <!-- Итог -->
             <div id="summaryPage" class="page">
                 <div class="success-message">✅ Заказ отправлен!</div>
                 <h3 style="margin-bottom: 20px;">📊 Итого по заказу</h3>
@@ -204,15 +205,42 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     </div>
     
     <script>
-        let tg = null;
-        if (window.Telegram && window.Telegram.WebApp) {
-            try { tg = window.Telegram.WebApp; tg.ready(); tg.expand(); } catch(e){}
+        // ===================== ЗАЩИТА ОТ ОТКРЫТИЯ В БРАУЗЕРЕ =====================
+        function checkTelegramEnvironment() {
+            if (!window.Telegram || !window.Telegram.WebApp) {
+                document.body.innerHTML = `
+                    <div style="padding: 50px 20px; text-align: center; font-family: sans-serif; max-width: 500px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <h2>⚠️ Доступ запрещён</h2>
+                        <p style="margin: 20px 0; font-size: 16px;">Это приложение работает только внутри Telegram.</p>
+                        <p>Пожалуйста, откройте его через бота.</p>
+                        <button onclick="window.location.href='https://t.me/TTZ_Sales_Department_bot'" 
+                                style="margin-top:30px; padding:14px 32px; background:#229ED9; color:white; border:none; border-radius:8px; font-size:17px; cursor:pointer;">
+                            Открыть в Telegram
+                        </button>
+                    </div>`;
+                return false;
+            }
+            return true;
         }
-        
+
+        // Проверка при загрузке
+        window.addEventListener('load', () => {
+            if (!checkTelegramEnvironment()) return;
+            
+            try {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+            } catch(e) {
+                console.warn('Telegram WebApp не инициализирован');
+            }
+        });
+
+        let tg = null;
         let allProducts = [];
         let selectedProduct = null;
         let orders = [];
-        let editingIndex = null;   // ← важно для редактирования
+        let editingIndex = null;
         let currentPage = 'searchPage';
         
         function showPage(pageName) {
@@ -254,7 +282,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         function goToCheckout() { showPage('checkoutPage'); }
         function newOrder() { orders = []; updateCartBadge(); showPage('searchPage'); }
         
-        // Поиск
         async function searchProducts() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return showMessage('Введите текст для поиска', 'error');
@@ -263,7 +290,11 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             btn.disabled = true; btn.textContent = 'Загрузка...';
             
             try {
-                const res = await fetch('/api/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({query}) });
+                const res = await fetch('/api/search', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({query}) 
+                });
                 const data = await res.json();
                 allProducts = data.products || [];
                 if (allProducts.length === 0) showMessage('Товары не найдены', 'error');
@@ -308,22 +339,19 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             if (v > 1) document.getElementById('qtyInput').value = v - 1;
         }
         
-        // === ИСПРАВЛЕННАЯ ФУНКЦИЯ ===
         function addToOrder() {
             if (!selectedProduct) return;
             const qty = parseInt(document.getElementById('qtyInput').value) || 1;
             if (qty < 1) return;
             
             if (editingIndex !== null) {
-                // Режим редактирования — заменяем количество
                 orders[editingIndex].quantity = qty;
                 showMessage('✅ Количество обновлено', 'success');
                 editingIndex = null;
             } else {
-                // Обычное добавление
                 const existingIndex = orders.findIndex(o => o.id === selectedProduct.id);
                 if (existingIndex >= 0) {
-                    orders[existingIndex].quantity += qty;   // прибавляем только при повторном добавлении
+                    orders[existingIndex].quantity += qty;
                 } else {
                     orders.push({
                         id: selectedProduct.id,
@@ -339,7 +367,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             goBackFromDetail();
         }
         
-        // Корзина
         function updateCartBadge() {
             const total = orders.reduce((sum, item) => sum + (item.quantity || 0), 0);
             document.getElementById('cartBadge').textContent = total;
@@ -456,14 +483,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             if (e.key === 'Enter') searchProducts();
         });
         
-        updateCartBadge();
-        console.log('✅ ARMOR HAND v2.5 — редактирование количества исправлено');
+        console.log('✅ ARMOR HAND Mini App v2.6 загружена (с защитой от браузера)');
     </script>
 </body>
 </html>'''
 
 # ===================== ROUTES =====================
-
 @app.route('/webapp', methods=['GET'])
 def webapp():
     return render_template_string(MINI_APP_HTML)
@@ -487,9 +512,9 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "2.5"})
+    return jsonify({"status": "ok", "version": "2.6"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v2.5 запущен")
+    print("\n🛡️ ARMOR HAND Cloud v2.6 запущен (с защитой от браузера)")
     app.run(host='0.0.0.0', port=port, debug=False)
