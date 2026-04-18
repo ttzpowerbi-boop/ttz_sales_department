@@ -1,5 +1,5 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.8)
+🛡️ ARMOR HAND - Облачный Mini App на Render (Полная версия v2.9)
 Максимально строгая защита — работает ТОЛЬКО внутри Telegram
 """
 
@@ -116,7 +116,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 </head>
 <body>
 
-    <!-- Блокировка при открытии вне Telegram -->
+    <!-- Блокировка -->
     <div id="blockedScreen" style="display: none; height: 100vh; background: #f0f2f5; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px;">
         <h2 style="color: #c62828; margin-bottom: 20px;">⚠️ Доступ запрещён</h2>
         <p style="font-size: 17px; max-width: 420px; margin-bottom: 30px;">
@@ -246,7 +246,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     </div>
 
     <script>
-        // === СТРОГАЯ ЗАЩИТА ===
+        // === МАКСИМАЛЬНО СТРОГАЯ ЗАЩИТА ===
         function checkTelegramOnly() {
             if (!window.Telegram || !window.Telegram.WebApp) {
                 document.getElementById('blockedScreen').style.display = 'flex';
@@ -256,6 +256,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             return true;
         }
 
+        // Запуск сразу
         window.onload = function() {
             if (!checkTelegramOnly()) return;
 
@@ -266,7 +267,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             } catch(e) {}
 
             updateCartBadge();
-            console.log('✅ ARMOR HAND v2.8 запущен внутри Telegram');
+            console.log('✅ ARMOR HAND v2.9 запущен внутри Telegram');
         };
 
         let tg = null;
@@ -276,6 +277,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         let editingIndex = null;
         let currentPage = 'searchPage';
 
+        // ===================== ОСНОВНАЯ ЛОГИКА =====================
         function showPage(pageName) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(pageName).classList.add('active');
@@ -330,8 +332,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 });
                 const data = await res.json();
                 allProducts = data.products || [];
-                if (allProducts.length === 0) showMessage('Товары не найдены', 'error');
-                else {
+                if (allProducts.length === 0) {
+                    showMessage('Товары не найдены', 'error');
+                } else {
                     displayProducts(allProducts);
                     showMessage(`✅ Найдено ${allProducts.length} товаров`, 'success');
                 }
@@ -549,9 +552,9 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "2.8"})
+    return jsonify({"status": "ok", "version": "2.9"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v2.8 запущен — максимальная защита")
+    print("\n🛡️ ARMOR HAND Cloud v2.9 запущен — максимальная защита")
     app.run(host='0.0.0.0', port=port, debug=False)
