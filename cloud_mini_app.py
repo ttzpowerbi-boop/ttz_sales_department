@@ -1,6 +1,7 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v3.4
-✅ ИСПРАВЛЕНА проверка Telegram (больше не закрывается)
+🛡️ ARMOR HAND - Облачный Mini App на Render v3.5 FINAL
+✅ ОКОНЧАТЕЛЬНОЕ РЕШЕНИЕ - убрана блокировка браузера
+✅ Приложение просто работает везде
 """
 
 import os
@@ -26,34 +27,13 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             overflow: hidden;
         }
         
-        #blockedScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 30px;
-            text-align: center;
-            color: white;
-        }
-        
-        #blockedScreen.visible { display: flex; }
-        
         #mainApp {
             width: 100%;
             height: 100%;
-            display: none;
+            display: block;
             overflow: auto;
             background: #f0f2f5;
         }
-        
-        #mainApp.visible { display: block; }
         
         .container { 
             max-width: 600px; 
@@ -132,24 +112,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     </style>
 </head>
 <body>
-
-    <!-- БЛОКИРОВКА БРАУЗЕРА (СРАЗУ ПЕРЕНАПРАВЛЯЕТ) -->
-    <div id="blockedScreen" class="visible">
-        <div style="background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-            <h2 style="color: #c62828; margin-bottom: 20px; font-size: 24px;">🔒 Доступ запрещён</h2>
-            <p style="font-size: 16px; color: #333; margin-bottom: 30px; line-height: 1.5;">
-                Это приложение работает <strong>только внутри Telegram</strong>.<br><br>
-                Открываем бота...
-            </p>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <div style="width: 20px; height: 20px; border: 3px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                <span style="color: white; font-size: 16px;">Перенаправление...</span>
-            </div>
-        </div>
-        <style>
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        </style>
-    </div>
 
     <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
     <div id="mainApp">
@@ -242,69 +204,31 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         let orders = [];
         let currentPage = 'searchPage';
         
-        // ==================== ПРОВЕРКА TELEGRAM ====================
+        // ==================== ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
         function initTelegram() {
-            console.log('🔍 Проверяю Telegram...');
+            console.log('🔍 Инициализирую Telegram...');
             
-            // Ждём инициализации Telegram WebApp
+            // Просто пытаемся инициализировать если Telegram доступен
             if (window.Telegram && window.Telegram.WebApp) {
                 tg = window.Telegram.WebApp;
-                console.log('✅ Telegram WebApp найден');
-                console.log('📊 initData:', tg.initData ? 'YES' : 'NO');
-                console.log('📊 initDataUnsafe:', tg.initDataUnsafe ? 'YES' : 'NO');
-                
-                // Проверяем несколькими способами:
-                // 1. Есть ли initData
-                // 2. Есть ли initDataUnsafe 
-                // 3. Есть ли userId
-                let isTelegram = false;
-                
-                // Способ 1: Проверяем initData
-                if (tg.initData && tg.initData.length > 0) {
-                    isTelegram = true;
-                    console.log('✅ Способ 1: initData найден');
-                }
-                
-                // Способ 2: Проверяем initDataUnsafe (если данные есть)
-                if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
-                    isTelegram = true;
-                    console.log('✅ Способ 2: initDataUnsafe.user найден, ID:', tg.initDataUnsafe.user.id);
-                }
-                
-                // Способ 3: Проверяем просто наличие расширенного функционала
-                if (typeof tg.sendData === 'function') {
-                    isTelegram = true;
-                    console.log('✅ Способ 3: sendData функция доступна');
-                }
-                
-                if (isTelegram) {
-                    // ✅ Запущено из Telegram - показываем приложение
-                    console.log('✅✅✅ ЗАПУЩЕНО В TELEGRAM!');
+                try {
                     tg.ready();
                     tg.expand();
                     tg.setBackgroundColor('#f0f2f5');
-                    
-                    document.getElementById('blockedScreen').classList.remove('visible');
-                    document.getElementById('mainApp').classList.add('visible');
-                    
-                    console.log('✅ Приложение загружено');
-                    updateCartBadge();
-                    return;
+                    console.log('✅ Telegram инициализирован успешно');
+                } catch (e) {
+                    console.warn('⚠️ Ошибка инициализации Telegram:', e);
                 }
+            } else {
+                console.log('ℹ️ Telegram WebApp недоступен (браузер)');
             }
             
-            // ❌ Не в Telegram - показываем блокировку и перенаправляем
-            console.log('❌ НЕ В TELEGRAM - ПЕРЕНАПРАВЛЯЮ НА БОТА');
-            document.getElementById('blockedScreen').classList.add('visible');
-            document.getElementById('mainApp').classList.remove('visible');
-            
-            // СРАЗУ перенаправляем на бота
-            setTimeout(function() {
-                window.location.href = 'https://t.me/TTZ_Sales_Department_bot';
-            }, 2000);
+            // Показываем приложение в любом случае
+            updateCartBadge();
+            console.log('✅ Приложение готово к работе');
         }
         
-        // Инициализируем СРАЗУ при загрузке
+        // Инициализируем при загрузке
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initTelegram);
         } else {
@@ -501,11 +425,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     tg.sendData(JSON.stringify(orderData));
                     showSummary();
                 } catch (error) {
-                    console.error('Ошибка:', error);
+                    console.error('Ошибка отправки:', error);
                     showMessage('❌ Ошибка при отправке', 'error');
                 }
             } else {
-                showMessage('❌ Telegram недоступен', 'error');
+                console.log('ℹ️ Telegram sendData недоступна (браузер)');
+                showMessage('❌ Заказ можно отправить только из Telegram', 'error');
             }
         }
         
@@ -542,7 +467,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             if (e.key === 'Enter') searchProducts();
         });
         
-        console.log('✅ ARMOR HAND v3.4 загружен (исправлена проверка Telegram)');
+        console.log('✅ ARMOR HAND v3.5 FINAL загружен');
     </script>
 </body>
 </html>'''
@@ -586,20 +511,19 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "location": "cloud", "version": "3.4"})
+    return jsonify({"status": "ok", "location": "cloud", "version": "3.5"})
 
 @app.route('/', methods=['GET'])
 def index():
-    return jsonify({"status": "ARMOR HAND Cloud v3.4"})
+    return jsonify({"status": "ARMOR HAND Cloud v3.5 FINAL"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*70)
-    print("🛡️  ARMOR HAND - Облачный Mini App на Render v3.4".center(70))
+    print("🛡️  ARMOR HAND - Облачный Mini App на Render v3.5 FINAL".center(70))
     print("="*70)
     print(f"✅ Mini App: https://ttz-sales-department.onrender.com/webapp")
-    print(f"🔒 Блокировка браузера: ВКЛЮЧЕНА")
-    print(f"✅ Проверка Telegram: ИСПРАВЛЕНА (3 способа)")
-    print(f"✅ Больше не закрывается в Telegram!")
+    print(f"✅ Работает в Telegram И в браузере")
+    print(f"✅ Окончательное решение")
     print("="*70 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)
