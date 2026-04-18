@@ -5,3 +5,6 @@ python-telegram-bot==20.0
 pyodbc
 cryptography
 requests
+openpyxl
+pandas
+xlrd
