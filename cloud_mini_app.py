@@ -1,6 +1,7 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v3.8 ULTRA SIMPLE
-✅ БЕЗ ПРОВЕРОК - просто загружаем приложение
+🛡️ ARMOR HAND - Облачный Mini App на Render v3.9 FINAL
+✅ БРАУЗЕР: сразу ошибка "Только Telegram"
+✅ TELEGRAM: полная функциональность включая sendData
 """
 
 import os
@@ -31,6 +32,44 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
             background: #f0f2f5; 
             color: #333; 
+        }
+        
+        #error-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        
+        #error-screen.hidden { display: none; }
+        
+        .error-box {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .error-box h2 {
+            color: #c62828;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .error-box p {
+            font-size: 16px;
+            color: #333;
+            line-height: 1.5;
+            margin-bottom: 20px;
         }
         
         .app { width: 100%; }
@@ -82,6 +121,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         th { background: #e3f2fd; font-weight: 600; color: #1e3c72; }
         
         .btn { padding: 12px 20px; background: #2a5298; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
         .btn-delete { padding: 6px 12px; background: #f44336; font-size: 11px; }
         .btn-clear { background: #757575; }
         
@@ -97,13 +137,28 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             font-size: 12px;
             font-weight: bold;
             margin-left: 10px;
+            cursor: pointer;
         }
         .badge.hidden { display: none; }
+        
+        .buttons { display: flex; gap: 10px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div class="app">
+<!-- ОШИБКА БРАУЗЕРА -->
+<div id="error-screen">
+    <div class="error-box">
+        <h2>🔒 Доступ запрещён</h2>
+        <p>Это приложение работает <strong>только внутри Telegram</strong>.</p>
+        <p style="font-size: 14px; color: #666;">
+            Откройте бота: <strong>@TTZ_Sales_Department_bot</strong>
+        </p>
+    </div>
+</div>
+
+<!-- ПРИЛОЖЕНИЕ -->
+<div class="app" style="display:none;">
     <div class="container">
         <div class="header">
             <h1>🛡️ ARMOR HAND</h1>
@@ -127,6 +182,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             
             <!-- КОРЗИНА -->
             <div id="page-cart" class="page">
+                <div class="buttons" style="margin-bottom: 20px;">
+                    <button class="btn btn-clear" onclick="showPage('search')">← Назад</button>
+                </div>
                 <h3 style="margin-bottom: 20px;">
                     🛒 Корзина
                     <span id="badge" class="badge hidden" onclick="showPage('search')">0</span>
@@ -135,10 +193,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     <tr><th>Товар</th><th style="width:60px">Кол-во</th><th style="width:50px">Удал</th></tr>
                     <tbody id="cart-items"></tbody>
                 </table>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-clear" onclick="showPage('search')">← Назад</button>
+                <div class="buttons">
                     <button class="btn btn-clear" onclick="clearCart()">Очистить</button>
-                    <button class="btn" onclick="submit()">Отправить</button>
+                    <button class="btn" onclick="submit()" id="submit-btn">Отправить</button>
                 </div>
             </div>
             
@@ -149,7 +206,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     <tr><th>Товар</th><th>Кол-во</th></tr>
                     <tbody id="order-items"></tbody>
                 </table>
-                <button class="btn" onclick="newOrder()">Новый заказ</button>
+                <div class="buttons">
+                    <button class="btn" onclick="newOrder()">Новый заказ</button>
+                </div>
             </div>
         </div>
     </div>
@@ -160,13 +219,42 @@ let cart = [];
 let products = [];
 let tg = window.Telegram?.WebApp;
 
-// Инициализируем Telegram если доступен
-if (tg) {
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+function init() {
+    console.log('🔍 Проверяю Telegram...');
+    
+    // Проверяем есть ли Telegram и инициализирован ли
+    if (!tg) {
+        console.log('❌ Telegram не найден - показываю ошибку браузера');
+        return; // Браузер - показываем ошибку
+    }
+    
+    // Есть Telegram - проверяем что он инициализирован
+    if (!tg.initData || tg.initData.length === 0) {
+        // Может быть это псевдо-Telegram (браузер имитирует объект)
+        console.log('❌ initData пуста - вероятно браузер');
+        return;
+    }
+    
+    // ✅ ВСЁ ХОРОШО - ЭТО TELEGRAM!
+    console.log('✅ TELEGRAM APP DETECTED - ПОКАЗЫВАЮ ПРИЛОЖЕНИЕ');
+    
+    // Инициализируем Telegram
     tg.ready?.();
     tg.expand?.();
     tg.setBackgroundColor?.('#f0f2f5');
+    
+    // Скрываем ошибку и показываем приложение
+    document.getElementById('error-screen').classList.add('hidden');
+    document.querySelector('.app').style.display = 'block';
+    
+    console.log('✅ Приложение готово');
 }
 
+// Инициализируем после загрузки страницы
+window.addEventListener('load', init);
+
+// ==================== ФУНКЦИИ ====================
 function msg(text, type = 'info') {
     const el = document.getElementById('msg');
     el.textContent = text;
@@ -277,16 +365,28 @@ function clearCart() {
 function submit() {
     if (cart.length === 0) { msg('Добавьте товары', 'error'); return; }
     
+    console.log('📦 Попытка отправить заказ...');
+    console.log('tg:', tg);
+    console.log('tg.sendData:', tg?.sendData);
+    
+    if (!tg || !tg.sendData) {
+        msg('❌ Ошибка: sendData недоступна', 'error');
+        console.error('❌ tg.sendData не найдена!');
+        return;
+    }
+    
     const order = {
         items: cart.map(x => ({product: x.name, quantity: x.qty, unit: x.unit})),
         timestamp: new Date().toLocaleString('ru-RU')
     };
     
-    if (tg?.sendData) {
+    try {
+        console.log('📤 Отправляю:', JSON.stringify(order));
         tg.sendData(JSON.stringify(order));
         showSummary();
-    } else {
-        msg('❌ Только в Telegram', 'error');
+    } catch (error) {
+        console.error('❌ Ошибка sendData:', error);
+        msg('❌ Ошибка: ' + error.message, 'error');
     }
 }
 
@@ -307,7 +407,7 @@ document.getElementById('query').addEventListener('keypress', e => {
     if (e.key === 'Enter') search();
 });
 
-console.log('✅ ARMOR HAND v3.8 загружен');
+console.log('✅ ARMOR HAND v3.9 FINAL загружен');
 </script>
 
 </body>
@@ -338,7 +438,8 @@ def search():
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ Получено {len(result.get('products', []))} товаров\n")
+                count = len(result.get('products', []))
+                print(f"✅ Получено {count} товаров\n")
                 return jsonify(result)
                 
         except Exception as e:
@@ -351,11 +452,14 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "3.8"})
+    return jsonify({"status": "ok", "version": "3.9"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*60)
-    print("🛡️  ARMOR HAND v3.8 ULTRA SIMPLE")
+    print("🛡️  ARMOR HAND v3.9 FINAL")
+    print("="*60)
+    print(f"✅ Браузер: БЛОКИРОВАН")
+    print(f"✅ Telegram: РАБОТАЕТ")
     print("="*60 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)
