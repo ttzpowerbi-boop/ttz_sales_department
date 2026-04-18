@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v4.2
-Исправлено: кнопки редактирования и удаления в корзине + нормальный flow
+🛡️ ARMOR HAND - Облачный Mini App на Render v4.3
+Исправлен поиск + кнопки редактирования/удаления в корзине
 """
 
 import os
@@ -38,23 +38,17 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .content { padding: 20px; }
         .page { display: none; }
         .page.active { display: block; }
-        .section { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0; }
-        .section h3 { color: #1e3c72; font-size: 16px; margin-bottom: 15px; }
         
         .search-box { display: flex; gap: 10px; }
         .search-input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         .search-btn { padding: 12px 20px; background: #2a5298; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
         
-        .products { display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto; margin-top: 15px; }
+        .products { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-top: 15px; }
         .product { padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; }
         .product:hover { border-color: #2a5298; background: #f0f2f5; }
         .product-name { font-weight: 600; color: #1e3c72; }
         
-        .quantity-controls { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
-        .qty-btn { width: 40px; height: 40px; border: 2px solid #2a5298; background: white; color: #2a5298; border-radius: 8px; font-size: 20px; cursor: pointer; }
-        .qty-input { flex: 1; padding: 10px; text-align: center; font-size: 18px; border: 2px solid #ddd; border-radius: 8px; }
-        
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         th { background: #e3f2fd; }
         .action-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
@@ -92,36 +86,16 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             
             <!-- Поиск -->
             <div id="searchPage" class="page active">
-                <div class="section">
-                    <h3>📦 Поиск товаров</h3>
-                    <div class="search-box">
-                        <input type="text" id="searchInput" class="search-input" placeholder="Размер, тип, ГОСТ...">
-                        <button class="search-btn" onclick="searchProducts()">Найти</button>
-                    </div>
-                    <div id="productsList" class="products" style="display:none;"></div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Размер, тип, ГОСТ...">
+                    <button class="search-btn" onclick="searchProducts()">Найти</button>
                 </div>
-            </div>
-            
-            <!-- Детальный просмотр товара -->
-            <div id="detailPage" class="page">
-                <button class="btn btn-secondary" onclick="goBack()" style="margin-bottom:15px;">← Назад</button>
-                <div class="section">
-                    <h3 id="detailName"></h3>
-                    <div class="quantity-controls">
-                        <button class="qty-btn" onclick="changeQty(-1)">−</button>
-                        <input type="number" id="qtyInput" class="qty-input" value="1" min="1">
-                        <button class="qty-btn" onclick="changeQty(1)">+</button>
-                    </div>
-                    <div class="buttons">
-                        <button class="btn btn-secondary" onclick="goBack()">Отмена</button>
-                        <button class="btn btn-primary" onclick="addToCart()">Добавить в корзину</button>
-                    </div>
-                </div>
+                <div id="productsList" class="products" style="display:none;"></div>
             </div>
             
             <!-- Корзина -->
             <div id="cartPage" class="page">
-                <button class="btn btn-secondary" onclick="goBackToSearch()" style="margin-bottom:15px;">← Продолжить покупки</button>
+                <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
                 <h3>🛒 Корзина</h3>
                 <table id="cartTable">
                     <thead><tr><th>Товар</th><th>Кол-во</th><th>Ред.</th><th>Удал.</th></tr></thead>
@@ -129,7 +103,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </table>
                 <div class="buttons">
                     <button class="btn btn-secondary" onclick="clearCart()">Очистить</button>
-                    <button class="btn btn-primary" onclick="goToCheckout()">Отправить заказ</button>
+                    <button class="btn btn-primary" onclick="submitOrder()">Отправить заказ</button>
                 </div>
             </div>
         </div>
@@ -139,21 +113,27 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <script>
 let tg = null;
 let cart = [];
-let selectedProduct = null;
 
 function initApp() {
-    if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 10) {
-        tg = Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        document.querySelector('.app').style.display = 'block';
-        document.getElementById('error-screen').style.display = 'none';
-        console.log('✅ Запущено внутри Telegram');
-    } else {
-        document.getElementById('error-screen').style.display = 'flex';
-    }
+    const check = () => {
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 5) {
+            tg = Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            document.querySelector('.app').style.display = 'block';
+            document.getElementById('error-screen').style.display = 'none';
+            console.log('✅ Мини-приложение запущено внутри Telegram');
+            return true;
+        }
+        return false;
+    };
+    
+    if (check()) return;
+    setTimeout(check, 400);
+    setTimeout(check, 1000);
+    setTimeout(check, 1800);
 }
-window.onload = () => setTimeout(initApp, 600);
+window.onload = initApp;
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -161,118 +141,111 @@ function showPage(page) {
     document.getElementById('headerTitle').textContent = page === 'search' ? 'Форма предзаказа' : 'Ваша корзина';
 }
 
-function searchProducts() {
+async function searchProducts() {
     const query = document.getElementById('searchInput').value.trim();
-    if (!query) return showMessage('Введите запрос', 'error');
+    if (!query) return showMessage('Введите запрос для поиска', 'error');
     
-    fetch('/api/search', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({query})
-    })
-    .then(r => r.json())
-    .then(data => {
+    showMessage('Ищу товары...', 'success');
+    
+    try {
+        const res = await fetch('/api/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: query})
+        });
+        const data = await res.json();
+        
+        const list = document.getElementById('productsList');
         if (data.products && data.products.length > 0) {
             let html = '';
             data.products.forEach((p, i) => {
-                html += `<div class="product" onclick="selectProduct(${i}, '${p.name}', '${p.unit || "шт"}')">
+                html += `<div class="product" onclick="addToCartFromSearch('${p.name}', '${p.unit || "шт"}')">
                     <div class="product-name">${p.name}</div>
                 </div>`;
             });
-            document.getElementById('productsList').innerHTML = html;
-            document.getElementById('productsList').style.display = 'block';
+            list.innerHTML = html;
+            list.style.display = 'flex';
+            showMessage(`✅ Найдено ${data.products.length} товаров`, 'success');
         } else {
-            showMessage('Товары не найдены', 'error');
+            list.style.display = 'none';
+            showMessage('❌ Товары не найдены', 'error');
         }
-    })
-    .catch(() => showMessage('Ошибка соединения', 'error'));
-}
-
-function selectProduct(index, name, unit) {
-    selectedProduct = {name, unit};
-    document.getElementById('detailName').textContent = name;
-    document.getElementById('qtyInput').value = 1;
-    showPage('detail');
-}
-
-function changeQty(delta) {
-    let val = parseInt(document.getElementById('qtyInput').value) || 1;
-    val = Math.max(1, val + delta);
-    document.getElementById('qtyInput').value = val;
-}
-
-function addToCart() {
-    if (!selectedProduct) return;
-    const qty = parseInt(document.getElementById('qtyInput').value) || 1;
-    
-    const existing = cart.find(item => item.name === selectedProduct.name);
-    if (existing) {
-        existing.qty += qty;
-    } else {
-        cart.push({name: selectedProduct.name, qty: qty, unit: selectedProduct.unit});
+    } catch (e) {
+        showMessage('❌ Ошибка подключения к серверу', 'error');
+        console.error(e);
     }
-    
-    showMessage('✅ Добавлено в корзину', 'success');
-    updateCart();
-    showPage('search');
 }
 
-function updateCart() {
+function addToCartFromSearch(name, unit) {
+    const existing = cart.find(item => item.name === name);
+    if (existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({name: name, qty: 1, unit: unit});
+    }
+    showMessage('✅ Добавлено в корзину', 'success');
+    updateCartDisplay();
+    showPage('cart');
+}
+
+function updateCartDisplay() {
     let html = '';
     cart.forEach((item, index) => {
         html += `<tr>
             <td>${item.name}</td>
             <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${index})">✎</button></td>
-            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td>
+            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editCartItem(${index})">✎</button></td>
+            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeCartItem(${index})">✕</button></td>
         </tr>`;
     });
     document.getElementById('cartBody').innerHTML = html;
 }
 
-function editItem(index) {
-    selectedProduct = {name: cart[index].name, unit: cart[index].unit};
-    document.getElementById('qtyInput').value = cart[index].qty;
-    document.getElementById('detailName').textContent = cart[index].name;
-    showPage('detail');
+function editCartItem(index) {
+    const newQty = prompt(`Новое количество для "${cart[index].name}":`, cart[index].qty);
+    if (newQty !== null && !isNaN(newQty) && newQty > 0) {
+        cart[index].qty = parseInt(newQty);
+        updateCartDisplay();
+        showMessage('✅ Количество изменено', 'success');
+    }
 }
 
-function removeItem(index) {
-    if (confirm('Удалить товар?')) {
+function removeCartItem(index) {
+    if (confirm('Удалить этот товар из корзины?')) {
         cart.splice(index, 1);
-        updateCart();
-        showMessage('🗑️ Удалено', 'success');
+        updateCartDisplay();
+        showMessage('🗑️ Товар удалён', 'success');
     }
 }
 
 function clearCart() {
     if (confirm('Очистить всю корзину?')) {
         cart = [];
-        updateCart();
+        updateCartDisplay();
     }
 }
 
-function goToCheckout() {
+function submitOrder() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
+    
     if (tg && tg.sendData) {
-        tg.sendData(JSON.stringify({items: cart}));
-        showMessage('✅ Заказ отправлен!', 'success');
+        tg.sendData(JSON.stringify({items: cart, timestamp: new Date().toLocaleString('ru-RU')}));
+        showMessage('✅ Заказ отправлен в бота!', 'success');
         setTimeout(() => {
             cart = [];
-            updateCart();
+            updateCartDisplay();
             showPage('search');
-        }, 1500);
+        }, 1200);
+    } else {
+        showMessage('❌ Ошибка отправки (tg.sendData недоступен)', 'error');
     }
 }
-
-function goBack() { showPage('search'); }
-function goBackToSearch() { showPage('search'); }
 
 function showMessage(text, type) {
     const msg = document.getElementById('message');
     msg.textContent = text;
     msg.className = `message ${type}`;
-    setTimeout(() => msg.className = 'message', 3000);
+    setTimeout(() => { msg.className = 'message'; }, 4000);
 }
 </script>
 </body>
@@ -299,9 +272,14 @@ def search():
         )
         return jsonify(response.json())
     except Exception as e:
-        return jsonify({"error": "Сервер недоступен", "products": []})
+        print(f"Search proxy error: {e}")
+        return jsonify({"error": "Локальный сервер недоступен", "products": []})
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok", "version": "4.3"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND v4.2 — кнопки редактирования восстановлены")
+    print("\n🛡️ ARMOR HAND v4.3 — поиск и корзина исправлены")
     app.run(host='0.0.0.0', port=port, debug=False)
