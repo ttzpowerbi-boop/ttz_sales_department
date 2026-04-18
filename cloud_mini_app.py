@@ -1,8 +1,7 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App на Render v3.2
-✅ Блокировка браузера
-✅ Работает только в Telegram
-✅ Полный функционал корзины
+🛡️ ARMOR HAND - Облачный Mini App на Render v3.3
+✅ Мгновенное перенаправление в браузере
+✅ Нормальная работа в Telegram
 """
 
 import os
@@ -35,7 +34,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -45,7 +44,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             color: white;
         }
         
-        #blockedScreen.hidden { display: none; }
+        #blockedScreen.visible { display: flex; }
         
         #mainApp {
             width: 100%;
@@ -135,19 +134,22 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 </head>
 <body>
 
-    <!-- БЛОКИРОВКА БРАУЗЕРА -->
-    <div id="blockedScreen">
+    <!-- БЛОКИРОВКА БРАУЗЕРА (СРАЗУ ПЕРЕНАПРАВЛЯЕТ) -->
+    <div id="blockedScreen" class="visible">
         <div style="background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
             <h2 style="color: #c62828; margin-bottom: 20px; font-size: 24px;">🔒 Доступ запрещён</h2>
             <p style="font-size: 16px; color: #333; margin-bottom: 30px; line-height: 1.5;">
                 Это приложение работает <strong>только внутри Telegram</strong>.<br><br>
-                Пожалуйста, откройте его через нашего бота.
+                Открываем бота...
             </p>
-            <a href="https://t.me/TTZ_Sales_Department_bot" 
-               style="display: inline-block; padding: 14px 32px; background: #229ED9; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; text-decoration: none; font-weight: 600;">
-                ↳ Открыть в Telegram
-            </a>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <div style="width: 20px; height: 20px; border: 3px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <span style="color: white; font-size: 16px;">Перенаправление...</span>
+            </div>
         </div>
+        <style>
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
     </div>
 
     <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
@@ -246,44 +248,35 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             if (window.Telegram && window.Telegram.WebApp) {
                 tg = window.Telegram.WebApp;
                 
-                // Проверяем что мы внутри Telegram
+                // Проверяем что мы внутри Telegram (initData присутствует)
                 if (tg.initData && tg.initData.length > 0) {
-                    // ✅ Запущено из Telegram
+                    // ✅ Запущено из Telegram - показываем приложение
                     tg.ready();
                     tg.expand();
                     tg.setBackgroundColor('#f0f2f5');
                     
-                    document.getElementById('blockedScreen').classList.add('hidden');
+                    document.getElementById('blockedScreen').classList.remove('visible');
                     document.getElementById('mainApp').classList.add('visible');
                     
                     console.log('✅ Запущено внутри Telegram');
                     updateCartBadge();
-                    return true;
-                } else {
-                    // ❌ Попытка доступа вне Telegram
-                    console.log('❌ Доступ запрещён - не в Telegram');
-                    return false;
+                    return;
                 }
-            } else {
-                // ❌ Telegram скрипт не загружен
-                console.log('❌ Telegram WebApp не найден');
-                return false;
             }
+            
+            // ❌ Не в Telegram - показываем блокировку и СРАЗУ перенаправляем
+            console.log('❌ Доступ запрещён - перенаправление на бота');
+            document.getElementById('blockedScreen').classList.add('visible');
+            document.getElementById('mainApp').classList.remove('visible');
+            
+            // СРАЗУ перенаправляем на бота (максимум 2 секунды на прочитание)
+            setTimeout(function() {
+                window.location.href = 'https://t.me/TTZ_Sales_Department_bot';
+            }, 2000);
         }
         
-        // Инициализируем при загрузке
-        window.addEventListener('load', function() {
-            setTimeout(initTelegram, 500);
-        });
-        
-        // Дополнительная проверка
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(initTelegram, 500);
-            });
-        } else {
-            setTimeout(initTelegram, 500);
-        }
+        // Инициализируем СРАЗУ при загрузке страницы
+        initTelegram();
         
         // ==================== НАВИГАЦИЯ ====================
         function showPage(pageName) {
@@ -514,7 +507,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             if (e.key === 'Enter') searchProducts();
         });
         
-        console.log('✅ ARMOR HAND v3.2 загружен (только Telegram)');
+        console.log('✅ ARMOR HAND v3.3 загружен (быстрое перенаправление)');
     </script>
 </body>
 </html>'''
@@ -558,19 +551,19 @@ def search():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "location": "cloud", "version": "3.2"})
+    return jsonify({"status": "ok", "location": "cloud", "version": "3.3"})
 
 @app.route('/', methods=['GET'])
 def index():
-    return jsonify({"status": "ARMOR HAND Cloud v3.2 - Only Telegram"})
+    return jsonify({"status": "ARMOR HAND Cloud v3.3"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*70)
-    print("🛡️  ARMOR HAND - Облачный Mini App на Render v3.2".center(70))
+    print("🛡️  ARMOR HAND - Облачный Mini App на Render v3.3".center(70))
     print("="*70)
     print(f"✅ Mini App: https://ttz-sales-department.onrender.com/webapp")
-    print(f"🔒 Блокировка браузера: ВКЛЮЧЕНА")
-    print(f"✅ Работает только в Telegram")
+    print(f"🔒 Блокировка браузера: МГНОВЕННОЕ ПЕРЕНАПРАВЛЕНИЕ")
+    print(f"✅ В Telegram: НОРМАЛЬНАЯ РАБОТА")
     print("="*70 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)
