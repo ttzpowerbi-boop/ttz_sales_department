@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.0
-Добавлена страница предварительного просмотра (ЭСФ) + история заказов
+🛡️ ARMOR HAND - Облачный Mini App v5.1
+Добавлено: номер предзаказа + страница "Мои заказы" со статусами
 """
 
 import os
@@ -56,7 +56,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .remove-btn { background: #f44336; color: white; }
         
         .summary-table { background: #f9f9f9; padding: 15px; border-radius: 8px; }
-        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 600; }
+        .order-item { padding: 12px; background: white; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; }
         
         .message { padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; }
         .message.success { background: #c8e6c9; color: #2e7d32; display: block; }
@@ -66,9 +66,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
-        .btn-danger { background: #f44336; }
-        
-        textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .btn-success { background: #2e7d32; }
     </style>
 </head>
 <body>
@@ -113,7 +111,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
             
-            <!-- Предварительный просмотр (ЭСФ) -->
+            <!-- Предварительный просмотр -->
             <div id="previewPage" class="page">
                 <button class="btn btn-secondary" onclick="showPage('cart')" style="margin-bottom:15px;">← Назад в корзину</button>
                 <h3>📄 Предварительный просмотр заказа</h3>
@@ -122,9 +120,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                         <thead><tr><th>Товар</th><th>Кол-во</th></tr></thead>
                         <tbody id="previewTable"></tbody>
                     </table>
-                    <div class="summary-row" style="margin-top:15px;">
-                        <span>Итого позиций:</span>
-                        <span id="previewCount">0</span>
+                    <div style="margin-top:15px; font-weight:600;">
+                        Итого позиций: <span id="previewCount">0</span>
                     </div>
                 </div>
                 <div style="margin-top:20px;">
@@ -133,8 +130,15 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
                 <div class="buttons">
                     <button class="btn btn-secondary" onclick="showPage('cart')">Отмена</button>
-                    <button class="btn btn-primary" onclick="confirmAndSend()">Подтвердить и отправить заказ</button>
+                    <button class="btn btn-success" onclick="confirmAndSend()">Подтвердить и отправить заказ</button>
                 </div>
+            </div>
+            
+            <!-- Мои заказы -->
+            <div id="ordersPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
+                <h3>📋 Мои предзаказы</h3>
+                <div id="ordersList"></div>
             </div>
         </div>
     </div>
@@ -143,6 +147,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <script>
 let tg = null;
 let cart = [];
+let orderCounter = 1001; // Симуляция номеров заказов
 
 function initApp() {
     const check = () => {
@@ -166,7 +171,10 @@ function showPage(page) {
     document.getElementById(page + 'Page').classList.add('active');
     document.getElementById('headerTitle').textContent = 
         page === 'search' ? 'Форма предзаказа' : 
-        page === 'cart' ? 'Ваша корзина' : 'Предварительный просмотр';
+        page === 'cart' ? 'Ваша корзина' :
+        page === 'preview' ? 'Предварительный просмотр' : 'Мои предзаказы';
+    
+    if (page === 'orders') loadOrders();
 }
 
 async function searchProducts() {
@@ -203,11 +211,9 @@ async function searchProducts() {
 
 function addToCart(name, unit) {
     const existing = cart.find(item => item.name === name);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({name: name, qty: 1, unit: unit});
-    }
+    if (existing) existing.qty += 1;
+    else cart.push({name: name, qty: 1, unit: unit});
+    
     showMessage('✅ Добавлено в корзину', 'success');
     updateCartDisplay();
     showPage('cart');
@@ -228,26 +234,22 @@ function updateCartDisplay() {
 
 function editItem(index) {
     const newQty = prompt(`Новое количество для:\n${cart[index].name}`, cart[index].qty);
-    if (newQty !== null && !isNaN(newQty) && parseInt(newQty) > 0) {
+    if (newQty && !isNaN(newQty) && parseInt(newQty) > 0) {
         cart[index].qty = parseInt(newQty);
         updateCartDisplay();
-        showMessage('✅ Количество обновлено', 'success');
     }
 }
 
 function removeItem(index) {
-    if (confirm('Удалить товар из корзины?')) {
+    if (confirm('Удалить товар?')) {
         cart.splice(index, 1);
         updateCartDisplay();
-        showMessage('🗑️ Товар удалён', 'success');
     }
 }
 
 function clearCart() {
-    if (confirm('Очистить всю корзину?')) {
-        cart = [];
-        updateCartDisplay();
-    }
+    if (confirm('Очистить корзину?')) cart = [];
+    updateCartDisplay();
 }
 
 function showPreview() {
@@ -267,33 +269,53 @@ function confirmAndSend() {
     if (cart.length === 0) return;
     
     const comment = document.getElementById('orderComment').value.trim();
+    const orderNumber = "PRE-" + orderCounter++;
+    
+    const orderData = {
+        orderNumber: orderNumber,
+        items: cart,
+        comment: comment,
+        timestamp: new Date().toLocaleString('ru-RU'),
+        status: "Новый"
+    };
     
     if (tg && tg.sendData) {
-        const orderData = {
-            items: cart,
-            comment: comment,
-            timestamp: new Date().toLocaleString('ru-RU')
-        };
         tg.sendData(JSON.stringify(orderData));
         
-        showMessage('✅ Заказ успешно отправлен в бота!', 'success');
+        showMessage(`✅ Предзаказ №${orderNumber} успешно создан и отправлен в бота!`, 'success');
         
         setTimeout(() => {
             cart = [];
             updateCartDisplay();
             showPage('search');
-        }, 1800);
-    } else {
-        showMessage('❌ Ошибка отправки', 'error');
+        }, 2000);
     }
 }
 
-function showMessage(text, type) {
-    const msg = document.getElementById('message');
-    msg.textContent = text;
-    msg.className = `message ${type}`;
-    setTimeout(() => msg.className = 'message', 4000);
+// === Страница "Мои заказы" (симуляция) ===
+let myOrders = []; // В реальном проекте загружалось бы из бота
+
+function loadOrders() {
+    const container = document.getElementById('ordersList');
+    if (myOrders.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#666; padding:40px;">У вас пока нет предзаказов</p>`;
+        return;
+    }
+    
+    let html = '';
+    myOrders.forEach(order => {
+        html += `
+            <div class="order-item">
+                <strong>№${order.orderNumber}</strong> — ${order.timestamp}<br>
+                <small>Статус: <span style="color:#2e7d32;">${order.status}</span></small><br><br>
+                ${order.items.map(item => `• ${item.name} — ${item.qty} ${item.unit}`).join('<br>')}
+            </div>`;
+    });
+    container.innerHTML = html;
 }
+
+// Инициализация
+showPage('search');
 </script>
 </body>
 </html>'''
@@ -324,5 +346,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.0 — предварительный просмотр добавлен")
+    print("\n🛡️ ARMOR HAND Cloud v5.1 — предварительный просмотр + мои заказы")
     app.run(host='0.0.0.0', port=port, debug=False)
