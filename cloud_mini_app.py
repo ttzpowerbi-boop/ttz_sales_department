@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.3 FINAL
-Исправлена инициализация Telegram + выбор товара
+🛡️ ARMOR HAND - Облачный Mini App v5.4
+Максимально надёжная инициализация Telegram + выбор товара
 """
 
 import os
@@ -115,7 +115,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 </head>
 <body>
 
-<!-- Блокировка для браузера -->
 <div id="error-screen">
     <div class="error-box">
         <h2>🔒 Доступ запрещён</h2>
@@ -125,7 +124,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     </div>
 </div>
 
-<!-- Основное приложение -->
 <div class="app">
     <div class="container">
         <div class="header">
@@ -166,31 +164,35 @@ let tg = null;
 let cart = [];
 
 function initTelegram() {
-    console.log("🔍 Проверка Telegram окружения...");
-    
+    console.log("🔍 Запуск проверки Telegram...");
+
     const tryInit = () => {
-        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData && window.Telegram.WebApp.initData.length > 10) {
-            tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
+        if (window.Telegram && window.Telegram.WebApp) {
+            const webApp = window.Telegram.WebApp;
             
-            document.querySelector('.app').style.display = 'block';
-            document.getElementById('error-screen').style.display = 'none';
-            
-            console.log("✅ Успешно запущено внутри Telegram Mini App");
-            return true;
+            if (webApp.initData && webApp.initData.length > 10) {
+                tg = webApp;
+                tg.ready();
+                tg.expand();
+                
+                document.querySelector('.app').style.display = 'block';
+                document.getElementById('error-screen').style.display = 'none';
+                
+                console.log("✅ Успешно запущено внутри Telegram Mini App");
+                return true;
+            }
         }
         return false;
     };
 
-    // Несколько попыток с задержкой
+    // Несколько попыток с разными задержками
     if (tryInit()) return;
-    setTimeout(tryInit, 400);
-    setTimeout(tryInit, 900);
-    setTimeout(tryInit, 1600);
+    setTimeout(tryInit, 300);
+    setTimeout(tryInit, 800);
+    setTimeout(tryInit, 1500);
+    setTimeout(tryInit, 2500);
 }
 
-// Запуск
 window.onload = initTelegram;
 
 function showPage(page) {
@@ -283,7 +285,7 @@ function clearCart() {
 
 function showPreview() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
-    alert('Предварительный просмотр будет добавлен в следующей версии.\n\nВ корзине ' + cart.length + ' товаров.');
+    alert('Предварительный просмотр будет добавлен позже.\n\nВ корзине сейчас ' + cart.length + ' позиций.');
 }
 
 function showMessage(text, type) {
@@ -322,5 +324,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.3 — исправлена инициализация и выбор товара")
+    print("\n🛡️ ARMOR HAND Cloud v5.4 — максимальная надёжность инициализации")
     app.run(host='0.0.0.0', port=port, debug=False)
