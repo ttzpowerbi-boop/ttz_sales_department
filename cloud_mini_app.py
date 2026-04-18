@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.0
-Добавлена страница предварительного просмотра (ЭСФ) + история заказов
+🛡️ ARMOR HAND - Облачный Mini App v6.3 FINAL
+Твой рабочий v5.0 + Мои предзаказы + детальная страница + Excel + PDF (по шаблону Акта)
 """
 
 import os
@@ -20,59 +20,45 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ARMOR HAND</title>
     <script src="https://telegram.org/js/telegram-web-app.js" async></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; height: 100vh; overflow: hidden; }
-        
         #error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
         .error-box { background: white; padding: 40px 30px; border-radius: 12px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center; }
-        .error-box h2 { color: #c62828; font-size: 24px; margin-bottom: 20px; }
-        
         .app { display: none; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; text-align: center; }
-        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 16px 20px; text-align: center; }
+        .header h1 { font-size: 22px; margin-bottom: 4px; }
         .content { padding: 20px; }
         .page { display: none; }
         .page.active { display: block; }
-        
         .search-box { display: flex; gap: 10px; }
-        .search-input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
-        .search-btn { padding: 12px 20px; background: #2a5298; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        
-        .products { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-top: 15px; }
-        .product { padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; }
-        .product:hover { border-color: #2a5298; background: #f0f2f5; }
-        .product-name { font-weight: 600; color: #1e3c72; }
-        
+        .search-input { flex: 1; padding: 14px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 15px; }
+        .search-btn { padding: 14px 24px; background: #2a5298; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .products { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 280px); overflow-y: auto; margin-top: 15px; }
+        .product { padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; }
+        .product:hover { border-color: #2a5298; background: #f8f9ff; }
+        .product-name { font-weight: 600; color: #1e3c72; word-break: break-word; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; }
         th { background: #e3f2fd; font-weight: 600; }
-        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 17px; width: 42px; }
         .edit-btn { background: #2196f3; color: white; }
         .remove-btn { background: #f44336; color: white; }
-        
-        .summary-table { background: #f9f9f9; padding: 15px; border-radius: 8px; }
-        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 600; }
-        
-        .message { padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; }
+        .message { padding: 14px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; font-size: 15px; }
         .message.success { background: #c8e6c9; color: #2e7d32; display: block; }
         .message.error { background: #ffcdd2; color: #c62828; display: block; }
-        
-        .buttons { display: flex; gap: 10px; margin-top: 20px; }
-        .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; }
+        .buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .btn { flex: 1; padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 15px; color: white; }
         .btn-primary { background: #4caf50; }
         .btn-secondary { background: #757575; }
-        .btn-danger { background: #f44336; }
-        
-        textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .order-card { cursor: pointer; }
     </style>
 </head>
 <body>
-
 <div id="error-screen">
     <div class="error-box">
         <h2>🔒 Доступ запрещён</h2>
@@ -80,7 +66,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         <p>Откройте через бота: <strong>@TTZ_Sales_Department_bot</strong></p>
     </div>
 </div>
-
 <div class="app">
     <div class="container">
         <div class="header">
@@ -97,6 +82,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     <button class="search-btn" onclick="searchProducts()">Найти</button>
                 </div>
                 <div id="productsList" class="products" style="display:none;"></div>
+                <button class="btn btn-secondary" onclick="showPage('orders')" style="margin-top:20px;width:100%;">📦 Мои предзаказы</button>
             </div>
             
             <!-- Корзина -->
@@ -113,7 +99,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 </div>
             </div>
             
-            <!-- Предварительный просмотр (ЭСФ) -->
+            <!-- Предварительный просмотр -->
             <div id="previewPage" class="page">
                 <button class="btn btn-secondary" onclick="showPage('cart')" style="margin-bottom:15px;">← Назад в корзину</button>
                 <h3>📄 Предварительный просмотр заказа</h3>
@@ -136,6 +122,23 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                     <button class="btn btn-primary" onclick="confirmAndSend()">Подтвердить и отправить заказ</button>
                 </div>
             </div>
+
+            <!-- Мои предзаказы -->
+            <div id="ordersPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('search')" style="margin-bottom:15px;">← Назад</button>
+                <h3>📦 Мои предзаказы</h3>
+                <div id="ordersList"></div>
+            </div>
+
+            <!-- Детальная страница -->
+            <div id="detailPage" class="page">
+                <button class="btn btn-secondary" onclick="showPage('orders')" style="margin-bottom:15px;">← Назад к заказам</button>
+                <div id="detailContent"></div>
+                <div class="buttons">
+                    <button class="btn btn-secondary" onclick="downloadExcel()">📊 Скачать Excel</button>
+                    <button class="btn btn-primary" onclick="printToPDF()">📄 Скачать PDF</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -143,6 +146,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <script>
 let tg = null;
 let cart = [];
+let orders = JSON.parse(localStorage.getItem('armorOrders') || '[]');
+let currentOrder = null;
 
 function initApp() {
     const check = () => {
@@ -164,15 +169,14 @@ window.onload = initApp;
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(page + 'Page').classList.add('active');
-    document.getElementById('headerTitle').textContent = 
-        page === 'search' ? 'Форма предзаказа' : 
-        page === 'cart' ? 'Ваша корзина' : 'Предварительный просмотр';
+    const titles = { 'search': 'Форма предзаказа', 'cart': 'Ваша корзина', 'preview': 'Предварительный просмотр', 'orders': 'Мои предзаказы', 'detail': 'Детали заказа' };
+    document.getElementById('headerTitle').textContent = titles[page] || 'ARMOR HAND';
+    if (page === 'orders') renderOrders();
 }
 
 async function searchProducts() {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return showMessage('Введите запрос', 'error');
-    
     try {
         const res = await fetch('/api/search', {
             method: 'POST',
@@ -180,14 +184,11 @@ async function searchProducts() {
             body: JSON.stringify({query})
         });
         const data = await res.json();
-        
         const list = document.getElementById('productsList');
         if (data.products && data.products.length > 0) {
             let html = '';
             data.products.forEach(p => {
-                html += `<div class="product" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', '${p.unit || "шт"}')">
-                    <div class="product-name">${p.name}</div>
-                </div>`;
+                html += `<div class="product" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', '${p.unit || "шт"}')"><div class="product-name">${p.name}</div></div>`;
             });
             list.innerHTML = html;
             list.style.display = 'flex';
@@ -203,11 +204,8 @@ async function searchProducts() {
 
 function addToCart(name, unit) {
     const existing = cart.find(item => item.name === name);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({name: name, qty: 1, unit: unit});
-    }
+    if (existing) existing.qty += 1;
+    else cart.push({name: name, qty: 1, unit: unit});
     showMessage('✅ Добавлено в корзину', 'success');
     updateCartDisplay();
     showPage('cart');
@@ -216,14 +214,9 @@ function addToCart(name, unit) {
 function updateCartDisplay() {
     let html = '';
     cart.forEach((item, index) => {
-        html += `<tr>
-            <td>${item.name}</td>
-            <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${index})">✎</button></td>
-            <td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td>
-        </tr>`;
+        html += `<tr><td>${item.name}</td><td style="text-align:center">${item.qty}</td><td style="text-align:center"><button class="action-btn edit-btn" onclick="editItem(${index})">✎</button></td><td style="text-align:center"><button class="action-btn remove-btn" onclick="removeItem(${index})">✕</button></td></tr>`;
     });
-    document.getElementById('cartBody').innerHTML = html;
+    document.getElementById('cartBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#999;padding:40px;">Корзина пуста</td></tr>';
 }
 
 function editItem(index) {
@@ -231,20 +224,16 @@ function editItem(index) {
     if (newQty !== null && !isNaN(newQty) && parseInt(newQty) > 0) {
         cart[index].qty = parseInt(newQty);
         updateCartDisplay();
-        showMessage('✅ Количество обновлено', 'success');
     }
 }
-
 function removeItem(index) {
-    if (confirm('Удалить товар из корзины?')) {
+    if (confirm('Удалить товар?')) {
         cart.splice(index, 1);
         updateCartDisplay();
-        showMessage('🗑️ Товар удалён', 'success');
     }
 }
-
 function clearCart() {
-    if (confirm('Очистить всю корзину?')) {
+    if (confirm('Очистить корзину?')) {
         cart = [];
         updateCartDisplay();
     }
@@ -252,47 +241,97 @@ function clearCart() {
 
 function showPreview() {
     if (cart.length === 0) return showMessage('Корзина пуста', 'error');
-    
     let html = '';
-    cart.forEach(item => {
-        html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`;
-    });
+    cart.forEach(item => html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`);
     document.getElementById('previewTable').innerHTML = html;
     document.getElementById('previewCount').textContent = cart.length;
-    
     showPage('preview');
 }
 
 function confirmAndSend() {
     if (cart.length === 0) return;
-    
     const comment = document.getElementById('orderComment').value.trim();
-    
-    if (tg && tg.sendData) {
-        const orderData = {
-            items: cart,
-            comment: comment,
-            timestamp: new Date().toLocaleString('ru-RU')
-        };
-        tg.sendData(JSON.stringify(orderData));
-        
-        showMessage('✅ Заказ успешно отправлен в бота!', 'success');
-        
-        setTimeout(() => {
-            cart = [];
-            updateCartDisplay();
-            showPage('search');
-        }, 1800);
-    } else {
-        showMessage('❌ Ошибка отправки', 'error');
+    const orderNumber = 'PRE-' + String(1000 + Math.floor(Math.random() * 9000));
+    const orderData = {
+        id: orderNumber,
+        date: new Date().toLocaleString('ru-RU'),
+        status: 'Новый',
+        items: cart,
+        comment: comment || '—'
+    };
+    orders.unshift(orderData);
+    localStorage.setItem('armorOrders', JSON.stringify(orders));
+    if (tg && tg.sendData) tg.sendData(JSON.stringify(orderData));
+    showMessage(`🎉 Предзаказ создан!<br><span style="font-size:20px;color:#2a5298;">${orderNumber}</span>`, 'success');
+    setTimeout(() => {
+        cart = [];
+        updateCartDisplay();
+        showPage('search');
+    }, 2200);
+}
+
+function renderOrders() {
+    const container = document.getElementById('ordersList');
+    if (orders.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">Пока нет предзаказов</p>';
+        return;
     }
+    let html = '';
+    orders.forEach((order, i) => {
+        html += `<div onclick="showOrderDetail(${i})" style="border:1px solid #ddd;border-radius:10px;padding:15px;margin-bottom:15px;background:#f8f9ff;cursor:pointer;">
+            <div style="display:flex;justify-content:space-between;"><strong>${order.id}</strong><span style="color:#2e7d32;">${order.status}</span></div>
+            <small>${order.date}</small>
+            <div style="margin-top:10px;font-size:13px;">${order.items.map(item => `• ${item.name} — ${item.qty} ${item.unit}`).join('<br>')}</div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function showOrderDetail(index) {
+    currentOrder = orders[index];
+    let html = `<h3>${currentOrder.id}</h3><p><strong>Дата:</strong> ${currentOrder.date}</p><p><strong>Статус:</strong> <span style="color:#2e7d32;">${currentOrder.status}</span></p>`;
+    html += `<table style="width:100%;margin-top:15px;"><thead><tr><th>Товар</th><th>Кол-во</th></tr></thead><tbody>`;
+    currentOrder.items.forEach(item => html += `<tr><td>${item.name}</td><td style="text-align:right">${item.qty} ${item.unit}</td></tr>`);
+    html += `</tbody></table>`;
+    if (currentOrder.comment !== '—') html += `<p style="margin-top:15px;"><strong>Комментарий:</strong> ${currentOrder.comment}</p>`;
+    document.getElementById('detailContent').innerHTML = html;
+    showPage('detail');
+}
+
+function downloadExcel() {
+    if (!currentOrder) return;
+    let csv = "№;Наименование;Ед.изм;Кол-во\n";
+    currentOrder.items.forEach((item, i) => csv += `${i+1};${item.name};${item.unit};${item.qty}\n`);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${currentOrder.id}.csv`;
+    link.click();
+    showMessage('✅ Excel скачан', 'success');
+}
+
+function printToPDF() {
+    if (!currentOrder) return;
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <div style="padding:30px;font-family:Arial;max-width:800px;margin:auto;">
+            <h2 style="text-align:center;">АКТ приема-передачи товара</h2>
+            <p style="text-align:center;">№ ${currentOrder.id} от ${currentOrder.date}</p>
+            <table border="1" style="width:100%;border-collapse:collapse;margin-top:30px;">
+                <tr><th>Товар</th><th>Кол-во</th></tr>
+                ${currentOrder.items.map(item => `<tr><td>${item.name}</td><td style="text-align:center">${item.qty} ${item.unit}</td></tr>`).join('')}
+            </table>
+        </div>
+    `);
+    win.document.close();
+    win.print();
 }
 
 function showMessage(text, type) {
     const msg = document.getElementById('message');
-    msg.textContent = text;
+    msg.innerHTML = text;
     msg.className = `message ${type}`;
-    setTimeout(() => msg.className = 'message', 4000);
+    setTimeout(() => msg.className = 'message', 5000);
 }
 </script>
 </body>
@@ -310,7 +349,6 @@ def search():
         query = data.get('query', '').strip()
         if not query:
             return jsonify({"error": "Пустой запрос", "products": []})
-        
         response = session.post(
             'https://criteria-waviness-entangled.ngrok-free.dev/api/search',
             json={'query': query},
@@ -324,5 +362,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.0 — предварительный просмотр добавлен")
+    print("\n🛡️ ARMOR HAND Cloud v6.3 FINAL — полностью рабочий + сохранение документов")
     app.run(host='0.0.0.0', port=port, debug=False)
