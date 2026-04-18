@@ -1,10 +1,8 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v6.0
-Новые функции:
-  1. Кнопка "Мои предзаказы" — список всех созданных предзаказов
-  2. Номер предзаказа при создании (ПЗ-YYYYMMDD-XXXX)
-  3. Просмотр каждого предзаказа с фильтром по периоду
-  4. Сохранение предзаказа в Excel (по шаблону акта)
+🛡️ ARMOR HAND - Облачный Mini App v7.0
+Изменения:
+  - Убрана вкладка "Импорт Excel"
+  - Выгрузка предзаказа в Excel точно по шаблону акта ТТЗ
 """
 
 import os
@@ -139,12 +137,6 @@ th{background:#e3f2fd;font-weight:600;}
 textarea{width:100%;height:70px;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:14px;resize:none;}
 
 /* ── import excel section ── */
-.import-area{border:2px dashed #bbb;border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:14px;}
-.import-area:hover{border-color:#2a5298;background:#f0f4ff;}
-.import-area .icon{font-size:36px;margin-bottom:8px;}
-.import-area p{font-size:13px;color:#555;}
-#fileInput{display:none;}
-.import-preview{margin-top:12px;}
 </style>
 </head>
 <body>
@@ -168,7 +160,7 @@ textarea{width:100%;height:70px;padding:10px;border:2px solid #ddd;border-radius
     <div class="nav">
       <button class="nav-btn active" onclick="switchTab('search')">🔍 Поиск</button>
       <button class="nav-btn" onclick="switchTab('orders')">📋 Предзаказы</button>
-      <button class="nav-btn" onclick="switchTab('import')">📥 Импорт Excel</button>
+
     </div>
 
     <div class="content">
@@ -266,22 +258,6 @@ textarea{width:100%;height:70px;padding:10px;border:2px solid #ddd;border-radius
           <button class="btn btn-excel" onclick="downloadCurrentDetailOrder()">⬇ Скачать Excel</button>
         </div>
       </div>
-
-      <!-- ══════════════ PAGE: IMPORT EXCEL ══════════════ -->
-      <div id="importPage" class="page">
-        <h3 style="margin-bottom:12px;">📥 Импорт из Excel</h3>
-        <p style="font-size:13px;color:#555;margin-bottom:14px;">
-          Загрузите файл акта приёма-передачи товара (.xls / .xlsx).<br>
-          Строки с товарами будут добавлены в корзину.
-        </p>
-        <div class="import-area" onclick="document.getElementById('fileInput').click()">
-          <div class="icon">📂</div>
-          <p>Нажмите для выбора файла<br><small>(.xls, .xlsx)</small></p>
-        </div>
-        <input type="file" id="fileInput" accept=".xls,.xlsx" onchange="handleImport(event)">
-        <div id="importResult" class="import-preview"></div>
-      </div>
-
     </div><!-- /content -->
   </div><!-- /container -->
 </div><!-- /app -->
@@ -333,11 +309,10 @@ let activeTab = 'search';
 function switchTab(tab){
   activeTab = tab;
   document.querySelectorAll('.nav-btn').forEach((b,i)=>{
-    b.classList.toggle('active', ['search','orders','import'][i]===tab);
+    b.classList.toggle('active', ['search','orders'][i]===tab);
   });
   if(tab==='search')  showPage('search');
   if(tab==='orders'){ showPage('orders'); renderOrdersList(); }
-  if(tab==='import')  showPage('import');
 }
 
 function showPage(page){
@@ -346,7 +321,7 @@ function showPage(page){
   const titles = {
     search:'Форма предзаказа', cart:'Корзина', preview:'Предварительный просмотр',
     success:'Предзаказ создан', orders:'Мои предзаказы',
-    orderDetail:'Детали предзаказа', import:'Импорт из Excel'
+    orderDetail:'Детали предзаказа'
   };
   document.getElementById('headerTitle').textContent = titles[page]||'';
 }
@@ -545,50 +520,6 @@ function downloadOrder(orderId){
 }
 
 /* ════════════════════════════════════════════════════════
-   IMPORT EXCEL
-════════════════════════════════════════════════════════ */
-async function handleImport(event){
-  const file = event.target.files[0];
-  if(!file) return;
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  document.getElementById('importResult').innerHTML = '<p style="color:#555;font-size:13px;">⏳ Обрабатываю файл...</p>';
-
-  try{
-    const res = await fetch('/api/import-excel',{method:'POST', body: formData});
-    const data = await res.json();
-    if(data.error) return document.getElementById('importResult').innerHTML = `<p style="color:red;">${data.error}</p>`;
-
-    // Добавить в корзину
-    let added = 0;
-    data.items.forEach(item=>{
-      if(!item.name) return;
-      const ex = cart.find(c=>c.name===item.name);
-      if(ex){ ex.qty += item.qty; }
-      else { cart.push({name:item.name, qty:item.qty, unit:item.unit||'шт'}); }
-      added++;
-    });
-    updateCartDisplay();
-
-    document.getElementById('importResult').innerHTML = `
-      <div style="background:#c8e6c9;color:#2e7d32;padding:12px;border-radius:8px;margin-top:10px;font-weight:600;">
-        ✅ Добавлено ${added} позиций из файла «${file.name}»
-      </div>
-      <div style="margin-top:10px;">
-        ${data.items.map(i=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #eee;">${i.name} — ${i.qty} ${i.unit}</div>`).join('')}
-      </div>`;
-
-    // Перейти в корзину
-    setTimeout(()=>{ switchTab('search'); showPage('cart'); }, 1500);
-  } catch(e){
-    document.getElementById('importResult').innerHTML = '<p style="color:red;">❌ Ошибка при загрузке</p>';
-  }
-  event.target.value='';
-}
-
-/* ════════════════════════════════════════════════════════
    UTILS
 ════════════════════════════════════════════════════════ */
 function showMessage(text, type){
@@ -681,93 +612,155 @@ def get_order(order_id):
         return jsonify({"error":"Заказ не найден"})
     return jsonify(o)
 
-# ── Download order as Excel ───────────────────────────────────────────────────
+# ── Download order as Excel (шаблон акта ТТЗ) ────────────────────────────────
 @app.route('/api/orders/<int:order_id>/excel', methods=['GET'])
 def download_order_excel(order_id):
     o = ORDERS.get(order_id)
     if not o:
         return jsonify({"error":"Заказ не найден"}), 404
-
     if not EXCEL_AVAILABLE:
         return jsonify({"error":"openpyxl не установлен"}), 500
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Предзаказ"
+    ws.title = "Акт"
 
-    # ── helpers ──
-    def hdr_font(): return Font(bold=True, size=11, name='Arial')
-    def cell_font(): return Font(size=10, name='Arial')
-    def thin(): return Side(style='thin', color='000000')
-    def all_borders(): return Border(left=thin(), right=thin(), top=thin(), bottom=thin())
-    def blue_fill(): return PatternFill('solid', start_color='DDEEFF')
-    def center(): return Alignment(horizontal='center', vertical='center')
-    def left_wrap(): return Alignment(horizontal='left', vertical='center', wrap_text=True)
+    # ── стили ──
+    def tn(s='thin'): return Side(style=s)
+    def no():         return Side(style=None)
+    def ab(): return Border(left=tn(), right=tn(), top=tn(), bottom=tn())
+    def lno(): return Border(left=tn(), top=tn(), bottom=tn())
 
-    # ── header block ──
-    ws.merge_cells('A1:F2')
-    c = ws['A1']
-    c.value = 'ARMOR HAND — Предзаказ'
-    c.font = Font(bold=True, size=14, name='Arial', color='1E3C72')
-    c.alignment = center()
-    c.fill = PatternFill('solid', start_color='D6E4F7')
+    f10b = Font(name='Times New Roman', size=10, bold=True)
+    f9b  = Font(name='Times New Roman', size=9,  bold=True)
+    f9   = Font(name='Times New Roman', size=9)
+    f8   = Font(name='Times New Roman', size=8)
+    cen  = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    lft  = Alignment(horizontal='left',   vertical='center', wrap_text=True)
+    rgt  = Alignment(horizontal='right',  vertical='center')
 
-    ws['A3'] = 'Номер:'
-    ws['B3'] = o['number']
-    ws['D3'] = 'Дата:'
-    ws['E3'] = o['created_at']
-    for cell in [ws['A3'], ws['D3']]:
-        cell.font = hdr_font()
-    for cell in [ws['B3'], ws['E3']]:
-        cell.font = cell_font()
+    # ── ширины колонок (11 колонок, как в оригинале) ──
+    widths = [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 11.5, 11.3, 14.5, 10.5, 17.3]
+    for i, w in enumerate(widths):
+        ws.column_dimensions[get_column_letter(i+1)].width = w
 
-    if o.get('comment'):
-        ws['A4'] = 'Комментарий:'
-        ws['A4'].font = hdr_font()
-        ws.merge_cells('B4:F4')
-        ws['B4'] = o['comment']
-        ws['B4'].font = cell_font()
-        ws['B4'].alignment = left_wrap()
+    def M(r1,c1,r2,c2): ws.merge_cells(start_row=r1,start_column=c1,end_row=r2,end_column=c2)
+    def W(r,c,val,fnt=None,aln=None,brd=None):
+        cell = ws.cell(row=r, column=c, value=val)
+        if fnt: cell.font = fnt
+        if aln: cell.alignment = aln
+        if brd: cell.border = brd
+        return cell
 
-    # ── table header ──
-    row = 6
-    headers = ['№', 'Наименование товара', 'Ед. изм', 'Кол-во']
-    cols = [4, 34, 8, 8]
-    for j,(h,w) in enumerate(zip(headers, cols), 1):
-        col_letter = get_column_letter(j)
-        ws.column_dimensions[col_letter].width = w
-        c = ws.cell(row=row, column=j, value=h)
-        c.font = hdr_font()
-        c.fill = blue_fill()
-        c.alignment = center()
-        c.border = all_borders()
+    # ── дата на русском ──
+    months = ['января','февраля','марта','апреля','мая','июня',
+              'июля','августа','сентября','октября','ноября','декабря']
+    now = datetime.now()
+    date_ru = f"{now.day} {months[now.month-1]} {now.year} г."
 
-    # ── rows ──
-    for idx, item in enumerate(o['items'], 1):
-        r = row + idx
-        data = [idx, item.get('name',''), item.get('unit','шт'), item.get('qty',1)]
-        for j, val in enumerate(data, 1):
-            c = ws.cell(row=r, column=j, value=val)
-            c.font = cell_font()
-            c.border = all_borders()
-            c.alignment = center() if j != 2 else left_wrap()
+    # ── СТРОКИ 2-4: Приложение ──
+    M(2,9,2,11); W(2,9,"Приложения №01", f9, rgt)
+    M(3,9,3,11); W(3,9,"к договору комисси №712", f9, rgt)
+    M(4,9,4,11); W(4,9,"7 февраля 2022 г.", f9, rgt)
 
-    # ── total row ──
-    total_row = row + len(o['items']) + 1
-    ws.merge_cells(f'A{total_row}:C{total_row}')
-    ws[f'A{total_row}'] = 'Итого позиций:'
-    ws[f'A{total_row}'].font = hdr_font()
-    ws[f'A{total_row}'].alignment = Alignment(horizontal='right')
-    ws[f'D{total_row}'] = len(o['items'])
-    ws[f'D{total_row}'].font = hdr_font()
-    ws[f'D{total_row}'].alignment = center()
+    # ── СТРОКА 6: Заголовок ──
+    ws.row_dimensions[6].height = 22.5
+    M(6,1,6,11); W(6,1, f"АКТ  приема-передачи товара № {o['number']}", f10b, cen)
 
-    # ── freeze + fix column widths ──
-    ws.freeze_panes = 'A7'
-    ws.column_dimensions['A'].width = 5
-    ws.column_dimensions['B'].width = 55
-    ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 10
+    # ── СТРОКА 8: Город / дата ──
+    ws.row_dimensions[8].height = 22.5
+    M(8,1,8,2);   W(8,1,"г. Ташкент", f9, lft)
+    M(8,10,8,11); W(8,10, date_ru, f9, rgt)
+
+    # ── СТРОКИ 10-13: Вводный текст ──
+    ws.row_dimensions[10].height = 60
+    M(10,1,13,11)
+    W(10,1,
+      'СП ООО "Ташкентский трубный завод имени В.Л. Гальперина", в лице директора Суцепиной В. Д., '
+      'действующего на основании Устава, именуемое в дальнейшем Комитент, с одной стороны и '
+      '"МЧЖ ARMOR HAND", в лице директора Исаханова С.С, действующего на основании Устава, '
+      ' именуемое в дальнейшем Комиссионер, с другой стороны, составили настоящий Акт о нижеследующем:',
+      f9, lft)
+
+    # ── СТРОКИ 14-15: п.1 ──
+    M(14,2,15,11)
+    W(14,2,
+      '1. В соответствии с п.3.2 Договора комиссии №712 от 7 февраля 2022 г.. Комитент передает, '
+      'а Комиссионер принимает Товар следующего ассортимента и количества:',
+      f9, lft)
+
+    # ── СТРОКИ 16-17: Шапка таблицы ──
+    ws.row_dimensions[16].height = 27.75
+    M(16,1,17,1);   W(16,1,"№ п/п", f9b, cen, ab())
+    M(16,2,17,5);   W(16,2,"Наименование", f9b, cen, ab())
+    M(16,6,17,6);   W(16,6,"Ед. изм", f9b, cen, ab())
+    M(16,7,17,7);   W(16,7,"Кол-во", f9b, cen, ab())
+    M(16,8,17,8);   W(16,8,"Цена без НДС, сум", f9b, cen, ab())
+    M(16,9,17,9);   W(16,9,"Цена, включая НДС, сум", f9b, cen, ab())
+    M(16,10,17,11); W(16,10,"Сумма, включая НДС сум", f9b, cen, ab())
+
+    # ── ТОВАРНЫЕ СТРОКИ ──
+    items = o['items']
+    cur = 18
+    for idx, item in enumerate(items, 1):
+        r1, r2 = cur, cur+1
+        ws.row_dimensions[r1].height = 16.875
+        ws.row_dimensions[r2].height = 16.875
+        M(r1,1,r2,1);   W(r1,1, idx,                    f8, cen, ab())
+        M(r1,2,r2,5);   W(r1,2, item.get('name',''),    f8, lft, ab())
+        M(r1,6,r2,6);   W(r1,6, item.get('unit','шт'),  f8, cen, ab())
+        M(r1,7,r2,7);   W(r1,7, item.get('qty',1),      f8, cen, ab())
+        M(r1,8,r2,8);   W(r1,8, "",                      f8, cen, ab())
+        M(r1,9,r2,9);   W(r1,9, "",                      f8, cen, ab())
+        M(r1,10,r2,11); W(r1,10,"",                      f8, cen, ab())
+        cur += 2
+
+    # ── ИТОГО ──
+    ws.row_dimensions[cur].height = 19.125
+    M(cur,1,cur,5)
+    W(cur,1,"Итого:", f9b, rgt,
+      Border(left=tn(),top=tn(),bottom=tn(),right=no()))
+    M(cur,6,cur,9)
+    W(cur,6,"",f9, cen,
+      Border(left=no(),right=no(),top=tn(),bottom=tn()))
+    M(cur,10,cur,11)
+    W(cur,10,"", f9b, rgt, ab())
+
+    # ── п.2 ──
+    r = cur + 1
+    M(r,2,r+2,11)
+    W(r,2,
+      '2.Принятый Комиссионером товар обладает качеством и ассортиментом, соответствующим требованиям Договора.'
+      'Товара поставлен в установленные в Договоре сроки. Комиссионер не имеет никаких претензий к принятому товару.',
+      f9, lft)
+    r += 3
+
+    # ── п.3 ──
+    M(r,2,r+1,11)
+    W(r,2,
+      '3.Настоящий Акт составлен в двух экземплярах, имеющих равную юридическую силу, '
+      'по одному экземпляру для каждой из Сторон и является неотъемлемой частью Договора между Сторонами.',
+      f9, lft)
+    r += 3
+
+    # ── ПОДПИСИ ──
+    M(r,2,r,5);   W(r,2,"КОМИТЕНТ", f9b, cen)
+    M(r,7,r,11);  W(r,7,"КОМИССИОНЕР", f9b, cen)
+    r += 2
+    M(r,2,r,5);   W(r,2,"Директор       Суцепина В. Д.", f9, lft)
+    M(r,7,r,11);  W(r,7,"Директор       Исаханов С.С", f9, lft)
+    r += 2
+    M(r,2,r,5);   W(r,2,"Ст. спец. реализации", f9, lft)
+    r += 2
+    M(r,2,r,5);   W(r,2,"Товар отпустил:", f9, lft)
+    M(r,7,r,11);  W(r,7,"Товар принял: Yakubxodjayev U", f9, lft)
+    r += 2
+    M(r,2,r,5);   W(r,2,"М.П.", f9, cen)
+    M(r,7,r,11);  W(r,7,"М.П.", f9, cen)
+
+    # ── печать ──
+    ws.page_setup.orientation = 'landscape'
+    ws.page_setup.paperSize = 9
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -776,56 +769,10 @@ def download_order_excel(order_id):
     return send_file(buf, as_attachment=True, download_name=fname,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-# ── Import Excel file ─────────────────────────────────────────────────────────
-@app.route('/api/import-excel', methods=['POST'])
-def import_excel():
-    if 'file' not in request.files:
-        return jsonify({"error":"Файл не загружен"})
-    file = request.files['file']
-    if not file.filename:
-        return jsonify({"error":"Пустое имя файла"})
-
-    try:
-        import pandas as pd
-        buf = io.BytesIO(file.read())
-        xl = pd.read_excel(buf, sheet_name=0, header=None)
-
-        items = []
-        # Ищем строки с данными: первый столбец — цифра (порядковый номер)
-        for _, row in xl.iterrows():
-            val0 = str(row.iloc[0]).strip() if len(row) > 0 else ''
-            # Числовой порядковый номер?
-            cleaned = re.sub(r'\s+','',val0)
-            if not re.match(r'^\d+$', cleaned):
-                continue
-            # Наименование — col 1
-            name = str(row.iloc[1]).strip() if len(row) > 1 else ''
-            if not name or name=='nan':
-                continue
-            # Единица — col 5
-            unit = str(row.iloc[5]).strip() if len(row) > 5 else 'шт'
-            unit = unit if unit and unit!='nan' else 'шт'
-            # Количество — col 6
-            try:
-                qty_raw = str(row.iloc[6]).strip().replace(' ','') if len(row) > 6 else '1'
-                qty = int(float(qty_raw))
-            except:
-                qty = 1
-            items.append({"name": name, "unit": unit, "qty": qty})
-
-        if not items:
-            return jsonify({"error":"Не найдено товарных строк. Убедитесь, что файл содержит порядковые номера в первом столбце."})
-
-        return jsonify({"items": items})
-    except Exception as e:
-        return jsonify({"error": f"Ошибка чтения файла: {str(e)}"})
-
 # ============================================================================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v6.0")
-    print("  ✅ Кнопка предзаказов с фильтром по периоду")
-    print("  ✅ Номер предзаказа при создании")
-    print("  ✅ Просмотр + скачать каждый предзаказ")
-    print("  ✅ Импорт товаров из Excel (акт ТТЗ)")
+    print("\n🛡️ ARMOR HAND Cloud v7.0")
+    print("  ✅ Выгрузка Excel строго по шаблону акта ТТЗ")
+    print("  ✅ Предзаказы с фильтром по периоду")
     app.run(host='0.0.0.0', port=port, debug=False)
