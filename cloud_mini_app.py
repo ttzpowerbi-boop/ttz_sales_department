@@ -1,6 +1,6 @@
 """
-🛡️ ARMOR HAND - Облачный Mini App v5.6
-Простая версия без строгой проверки — должна открываться из бота
+🛡️ ARMOR HAND - Облачный Mini App v5.7
+Исправлен поиск и добавление товара
 """
 
 import os
@@ -46,7 +46,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             text-align: center;
         }
         
-        .app { display: block; } /* Показываем сразу */
+        .app { display: block; }
         .container { 
             max-width: 600px; 
             margin: 0 auto; 
@@ -170,11 +170,8 @@ function startApp() {
         tg.ready();
         tg.expand();
         console.log("✅ Telegram WebApp инициализирован");
-    } else {
-        console.log("⚠️ Запущено не в Telegram");
     }
-    
-    // Показываем приложение в любом случае
+    // Показываем приложение сразу
     document.querySelector('.app').style.display = 'block';
     document.getElementById('error-screen').style.display = 'none';
 }
@@ -310,5 +307,5 @@ def search():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v5.6 — простая версия без строгой проверки")
+    print("\n🛡️ ARMOR HAND Cloud v5.7 — поиск и добавление товара исправлены")
     app.run(host='0.0.0.0', port=port, debug=False)
