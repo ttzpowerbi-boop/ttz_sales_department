@@ -223,11 +223,18 @@ let tg = null;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-    console.log('🔍 Инициализирую...');
+    console.log('🔍 Проверяю окружение...');
     
-    // Проверяем есть ли Telegram WebApp объект
-    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-        console.log('✅ Telegram.WebApp найден - ЭТО TELEGRAM!');
+    // Проверяем: есть ли Telegram.WebApp И есть ли initData (значит открыто из бота)
+    const hasTelegram = typeof Telegram !== 'undefined' && Telegram.WebApp;
+    const hasInitData = hasTelegram && Telegram.WebApp.initData && Telegram.WebApp.initData.length > 0;
+    
+    console.log('Telegram:', hasTelegram ? 'ДА' : 'НЕТ');
+    console.log('initData:', hasInitData ? 'ДА' : 'НЕТ');
+    
+    // Если Telegram И initData - это точно Mini App из бота
+    if (hasTelegram && hasInitData) {
+        console.log('✅✅✅ ЭТО TELEGRAM MINI APP!');
         tg = Telegram.WebApp;
         
         // Инициализируем
@@ -241,18 +248,21 @@ function init() {
         console.log('✅ Приложение загружено');
         
     } else {
-        console.log('❌ Telegram.WebApp не найден - ЭТО БРАУЗЕР!');
+        // Браузер или неполная инициализация
+        console.log('❌ НЕ TELEGRAM APP - БЛОКИРУЮ ДОСТУП');
         document.getElementById('error-screen').style.display = 'flex';
         document.querySelector('.app').classList.add('hidden');
     }
 }
 
-// Инициализируем сразу (скрипт загружается синхронно)
-window.addEventListener('DOMContentLoaded', init);
+// Инициализируем когда скрипт Telegram загружен
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        // Даём время на загрузку скрипта Telegram
+        setTimeout(init, 500);
+    });
 } else {
-    init();
+    setTimeout(init, 500);
 }
 
 // ==================== ФУНКЦИИ ====================
