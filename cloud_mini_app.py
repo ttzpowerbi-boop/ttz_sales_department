@@ -9,6 +9,7 @@ import os
 import json
 import io
 import re
+import hmac
 from datetime import datetime, date
 from flask import Flask, render_template_string, request, jsonify, send_file
 import requests
@@ -29,6 +30,10 @@ session = requests.Session()
 retry = Retry(total=3, backoff_factor=1, status_forcelist=[429,500,502,503,504])
 session.mount("http://", HTTPAdapter(max_retries=retry))
 session.mount("https://", HTTPAdapter(max_retries=retry))
+
+# Секреты из переменных окружения Render
+LOCAL_API_URL = os.environ.get('LOCAL_API_URL', 'https://criteria-waviness-entangled.ngrok-free.dev/api/search')
+API_SECRET_KEY = os.environ.get('API_SECRET_KEY', '')  # тот же ключ что в .env локального сервера
 
 # ── In-memory хранилище предзаказов ─────────────────────────────────────────
 ORDERS: dict = {}          # { order_id: { id, number, created_at, items, comment } }
@@ -553,17 +558,20 @@ def webapp():
 @app.route('/api/search', methods=['POST'])
 def search():
     try:
-        data = request.get_json() or {}
-        query = data.get('query','').strip()
+        data  = request.get_json() or {}
+        query = data.get('query','').strip()[:200]
         if not query:
             return jsonify({"error":"Пустой запрос","products":[]})
         response = session.post(
-            'https://criteria-waviness-entangled.ngrok-free.dev/api/search',
-            json={'query': query}, timeout=15, verify=False
+            LOCAL_API_URL,
+            json={'query': query},
+            headers={'X-API-Key': API_SECRET_KEY},
+            timeout=15,
+            verify=True   # ✅ проверяем SSL сертификат
         )
         return jsonify(response.json())
     except Exception as e:
-        print(f"Proxy error: {e}")
+        print(f"Proxy error: {type(e).__name__}")
         return jsonify({"error":"Локальный сервер недоступен","products":[]})
 
 # ── Create order ─────────────────────────────────────────────────────────────
@@ -866,7 +874,7 @@ def download_order_excel(order_id):
 # ============================================================================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print("\n🛡️ ARMOR HAND Cloud v7.0")
+    print("\n🛡️ ARMOR HAND Cloud v8.0 SECURE")
     print("  ✅ Выгрузка Excel строго по шаблону акта ТТЗ")
     print("  ✅ Предзаказы с фильтром по периоду")
     app.run(host='0.0.0.0', port=port, debug=False)
